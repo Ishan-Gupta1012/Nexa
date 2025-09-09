@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
-import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
+// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
 import { fetchWithRetry } from "../utils/api.js";
 import {
   Sparkles,

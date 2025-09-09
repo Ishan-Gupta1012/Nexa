@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "../supabaseClient.js";
-import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
+// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
 import { fetchWithRetry } from "../utils/api.js";
 import {
   User,

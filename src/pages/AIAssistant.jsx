@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "../supabaseClient.js";
 import { fetchWithRetry } from "../utils/api.js";
-import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
+// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
 import {
   MessageSquare,
   Send,
