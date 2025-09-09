@@ -1,0 +1,66 @@
+{
+  "name": "SkillAssessment",
+  "type": "object",
+  "properties": {
+    "skill_category": {
+      "type": "string",
+      "description": "Category being assessed"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correct_answer": {
+            "type": "number"
+          },
+          "user_answer": {
+            "type": "number"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "score": {
+      "type": "number",
+      "description": "Score out of 100"
+    },
+    "level": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced",
+        "expert"
+      ]
+    },
+    "ai_feedback": {
+      "type": "string",
+      "description": "AI-generated feedback"
+    },
+    "recommended_resources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "skill_category"
+  ]
+}

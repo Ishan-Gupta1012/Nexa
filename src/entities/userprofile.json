@@ -1,0 +1,79 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "profile_picture_url": {
+      "type": "string",
+      "description": "URL of the user's profile picture"
+    },
+    "career_goals": {
+      "type": "string",
+      "description": "User's primary career objective"
+    },
+    "current_role": {
+      "type": "string",
+      "description": "Current job title or role"
+    },
+    "experience_level": {
+      "type": "string",
+      "enum": [
+        "entry",
+        "junior",
+        "mid",
+        "senior",
+        "executive"
+      ],
+      "default": "entry"
+    },
+    "industry": {
+      "type": "string",
+      "description": "Target industry"
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Current skills list"
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Professional certifications"
+    },
+    "education": {
+      "type": "object",
+      "properties": {
+        "degree": {
+          "type": "string"
+        },
+        "field": {
+          "type": "string"
+        },
+        "university": {
+          "type": "string"
+        },
+        "graduation_year": {
+          "type": "number"
+        }
+      }
+    },
+    "preferred_learning_style": {
+      "type": "string",
+      "enum": [
+        "visual",
+        "auditory",
+        "reading",
+        "kinesthetic"
+      ],
+      "default": "visual"
+    },
+    "availability_hours_per_week": {
+      "type": "number",
+      "description": "Hours available for learning per week"
+    }
+  },
+  "required": []
+}

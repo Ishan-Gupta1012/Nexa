@@ -1,0 +1,147 @@
+{
+  "name": "Resume",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Resume title/name"
+    },
+    "template": {
+      "type": "string",
+      "enum": [
+        "modern",
+        "professional",
+        "creative",
+        "minimal"
+      ],
+      "default": "modern"
+    },
+    "personal_info": {
+      "type": "object",
+      "properties": {
+        "full_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "linkedin": {
+          "type": "string"
+        },
+        "website": {
+          "type": "string"
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "Professional summary"
+    },
+    "experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean",
+            "default": false
+          },
+          "description": {
+            "type": "string"
+          },
+          "achievements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "degree": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "university": {
+            "type": "string"
+          },
+          "graduation_date": {
+            "type": "string"
+          },
+          "gpa": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL to generated PDF"
+    },
+    "ai_score": {
+      "type": "number",
+      "description": "AI assessment score out of 100"
+    },
+    "ai_suggestions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "AI improvement suggestions"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}

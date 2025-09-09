@@ -1,0 +1,68 @@
+{
+  "name": "CareerRoadmap",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Roadmap title"
+    },
+    "career_goal": {
+      "type": "string",
+      "description": "Target career position"
+    },
+    "timeline_months": {
+      "type": "number",
+      "description": "Expected timeline in months"
+    },
+    "milestones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "target_date": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed"
+            ],
+            "default": "pending"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skills_gained": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "progress_percentage": {
+      "type": "number",
+      "default": 0
+    },
+    "ai_generated": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "title",
+    "career_goal"
+  ]
+}

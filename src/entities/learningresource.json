@@ -1,0 +1,74 @@
+{
+  "name": "LearningResource",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Course or resource title"
+    },
+    "provider": {
+      "type": "string",
+      "description": "Platform or provider name"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "course",
+        "certification",
+        "tutorial",
+        "book",
+        "video",
+        "article"
+      ],
+      "default": "course"
+    },
+    "skill_focus": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Skills this resource teaches"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "advanced"
+      ],
+      "default": "beginner"
+    },
+    "duration_hours": {
+      "type": "number",
+      "description": "Estimated completion time"
+    },
+    "rating": {
+      "type": "number",
+      "description": "Rating out of 5"
+    },
+    "url": {
+      "type": "string",
+      "description": "Link to the resource"
+    },
+    "ai_recommended": {
+      "type": "boolean",
+      "default": false
+    },
+    "user_saved": {
+      "type": "boolean",
+      "default": false
+    },
+    "user_completed": {
+      "type": "boolean",
+      "default": false
+    },
+    "price": {
+      "type": "string",
+      "description": "Price information"
+    }
+  },
+  "required": [
+    "title",
+    "provider"
+  ]
+}
