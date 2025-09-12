@@ -7,6 +7,7 @@ import ishanImage from '../assets/Ishan.png'; // Assuming ishan.png is Image 3
 import kshitijImage from '../assets/Kshitij.png'; // Assuming kshitij.png is Image 1
 import rahulImage from '../assets/Rahul.png'; // Assuming rahul.png is Image 2
 import diwakarImage from '../assets/Diwakar.png'; // Assuming diwakar.png is Image 4
+import Footer from '../components/Footer';
 
 
 const teamMembers = [
@@ -77,6 +78,7 @@ export default function AboutUs() {
                     ))}
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }

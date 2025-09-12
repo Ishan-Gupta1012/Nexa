@@ -22,6 +22,7 @@ import {
   Loader2,
   Sun,
   Moon,
+  Mic,
 } from "lucide-react";
 import nexaGenLogo from "../assets/logo.png";
 
@@ -87,12 +88,10 @@ const DropdownMenuSeparator = () => (
 // Navigation items (no changes)
 const navigationItems = [
   { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { title: "Resume Builder", to: "/resume-builder", icon: FileText },
   { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
   { title: "Career Roadmap", to: "/career-roadmap", icon: Map },
-  { title: "Skill Assessment", to: "/skill-assessment", icon: Brain },
   { title: "Learning Hub", to: "/learning-hub", icon: BookOpen },
-  { title: "AI Assistant", to: "/ai-assistant", icon: MessageSquare },
+    { title: "Interview Prep", to: "/interview-prep", icon: Mic },
 ];
 
 export default function Layout() {

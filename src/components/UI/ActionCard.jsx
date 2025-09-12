@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, Search, Map, Brain, ArrowRight } from 'lucide-react';
+import { FileText, Search, Map, Brain, ArrowRight, Mic,} from 'lucide-react'; // Add Mic
 
 const icons = {
     FileText,
     Search,
     Map,
-    Brain
+    Brain,
+    Mic ,
 };
 
 export default function ActionCard({ title, icon, color, description, link }) {

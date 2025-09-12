@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
-// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
 import { fetchWithRetry } from "../utils/api.js";
 import {
   Sparkles,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import StatCard from "../components/UI/StatCard.jsx";
 import ActionCard from "../components/UI/ActionCard.jsx";
+import Footer from "../components/Footer.jsx"; // Import the Footer component
 
 // A new component for the main action grid for better organization
 const MainActions = () => (
@@ -25,15 +25,8 @@ const MainActions = () => (
     </h2>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <ActionCard
-        title="Build a New Resume"
-        description="Start from scratch with AI help"
-        icon="FileText"
-        color="emerald"
-        link="/resume-builder"
-      />
-      <ActionCard
         title="Analyze a Resume"
-        description="Get AI-powered feedback"
+        description="Get AI-powered feedback and trending jobs "
         icon="Search"
         color="blue"
         link="/resume-analyzer"
@@ -45,13 +38,8 @@ const MainActions = () => (
         color="purple"
         link="/career-roadmap"
       />
-      <ActionCard
-        title="Take an Assessment"
-        description="Test your skills with a custom quiz"
-        icon="Brain"
-        color="pink"
-        link="/skill-assessment"
-      />
+
+       
     </div>
   </div>
 );
@@ -149,92 +137,95 @@ export default function Dashboard() {
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "User";
 
   return (
-    <div className="relative overflow-hidden p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Background Glows */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-emerald-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+    <>
+      <div className="relative overflow-hidden p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+        {/* Background Glows */}
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-emerald-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
 
-      <div className="space-y-2 relative z-10">
-        <h1 className="text-3xl lg:text-4xl font-bold text-white">
-          Welcome back, <span className="text-emerald-400">{firstName}</span>!
-        </h1>
-      </div>
-
-      {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-        {/* Left Column (Main Content) */}
-        <div className="lg:col-span-2 space-y-8">
-          {aiSuggestion && (
-            <div className="bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-xl shadow-lg p-6">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-400" /> Your AI-Powered
-                Next Step
-              </h3>
-              <p className="mt-2 text-gray-300">{aiSuggestion}</p>
-            </div>
-          )}
-          <MainActions />
+        <div className="space-y-2 relative z-10">
+          <h1 className="text-3xl lg:text-4xl font-bold text-white">
+            Welcome back, <span className="text-emerald-400">{firstName}</span>!
+          </h1>
         </div>
 
-        {/* Right Column (Stats) */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-white">Your Stats</h2>
-          <StatCard
-            icon="FileText"
-            label="Resumes Created"
-            value={stats.resumes}
-            color="emerald"
-          />
-          <StatCard
-            icon="Map"
-            label="Career Roadmaps"
-            value={stats.roadmaps}
-            color="blue"
-          />
-          <StatCard
-            icon="Brain"
-            label="Skills Assessed"
-            value={stats.assessments}
-            color="purple"
-          />
-          <StatCard
-            icon="Award"
-            label="Certifications"
-            value={stats.certifications}
-            color="pink"
-          />
-        </div>
-      </div>
+        {/* Main Dashboard Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
+          {/* Left Column (Main Content) */}
+          <div className="lg:col-span-2 space-y-8">
+            {aiSuggestion && (
+              <div className="bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-xl shadow-lg p-6">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-400" /> Your AI-Powered
+                  Next Step
+                </h3>
+                <p className="mt-2 text-gray-300">{aiSuggestion}</p>
+              </div>
+            )}
+            <MainActions />
+          </div>
 
-      {showProfileReminder && (
-        <div className="relative z-10 bg-yellow-500/10 backdrop-blur-md rounded-xl border border-yellow-400/20 p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Target className="w-6 h-6 text-yellow-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-1">
-                Complete Your Profile
-              </h3>
-              <p className="text-yellow-200 mb-4">
-                Set up your profile to unlock personalized AI recommendations.
-              </p>
-              <Link to="/profile">
-                <button className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg text-sm px-4 py-2">
-                  Complete Profile
-                </button>
-              </Link>
-            </div>
-            <button
-              onClick={() => setShowProfileReminder(false)}
-              className="text-gray-500 hover:text-gray-300"
-            >
-              <X className="w-5 h-5" />
-            </button>
+          {/* Right Column (Stats) */}
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white">Your Stats</h2>
+            <StatCard
+              icon="FileText"
+              label="Resumes Created"
+              value={stats.resumes}
+              color="emerald"
+            />
+            <StatCard
+              icon="Map"
+              label="Career Roadmaps"
+              value={stats.roadmaps}
+              color="blue"
+            />
+            <StatCard
+              icon="Brain"
+              label="Skills Assessed"
+              value={stats.assessments}
+              color="purple"
+            />
+            <StatCard
+              icon="Award"
+              label="Certifications"
+              value={stats.certifications}
+              color="pink"
+            />
           </div>
         </div>
-      )}
-    </div>
+
+        {showProfileReminder && (
+          <div className="relative z-10 bg-yellow-500/10 backdrop-blur-md rounded-xl border border-yellow-400/20 p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Target className="w-6 h-6 text-yellow-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-1">
+                  Complete Your Profile
+                </h3>
+                <p className="text-yellow-200 mb-4">
+                  Set up your profile to unlock personalized AI recommendations.
+                </p>
+                <Link to="/profile">
+                  <button className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg text-sm px-4 py-2">
+                    Complete Profile
+                  </button>
+                </Link>
+              </div>
+              <button
+                onClick={() => setShowProfileReminder(false)}
+                className="text-gray-500 hover:text-gray-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <Footer />
+    </>
   );
 }
