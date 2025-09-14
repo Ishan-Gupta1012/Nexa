@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
+
 import {
   Link,
   useLocation,
@@ -20,12 +21,10 @@ import {
   Info,
   LogOut,
   Loader2,
-  Sun,
-  Moon,
 } from "lucide-react";
 import nexaGenLogo from "../assets/logo.png";
 
-// Dropdown components (no changes needed)
+// Dropdown components
 const DropdownMenuContext = React.createContext();
 
 const DropdownMenu = ({ children }) => {
@@ -58,7 +57,6 @@ const DropdownMenuContent = ({ children }) => {
 
   if (!isOpen) return null;
 
-  // --- CHANGE: Positioned for a top-right dropdown ---
   return (
     <div
       ref={menuRef}
@@ -84,40 +82,41 @@ const DropdownMenuSeparator = () => (
   <div className="border-t border-white/10 my-1" />
 );
 
-// Navigation items (no changes)
 const navigationItems = [
   { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { title: "Resume Builder", to: "/resume-builder", icon: FileText },
   { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
+  {title: "Interview Prep", to: "/interview-prep", icon: Search }, // --- NEW ITEM ---
   { title: "Career Roadmap", to: "/career-roadmap", icon: Map },
-  { title: "Skill Assessment", to: "/skill-assessment", icon: Brain },
-  { title: "Learning Hub", to: "/learning-hub", icon: BookOpen },
-  { title: "AI Assistant", to: "/ai-assistant", icon: MessageSquare },
+    { title: "Learning Hub", to: "/learning-hub", icon: BookOpen },
 ];
 
 export default function Layout() {
-  // --- CHANGE: Renamed isSidebarOpen to isMobileMenuOpen for clarity ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null); // --- NEW: State for profile data ---
   const [isLoading, setIsLoading] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    if (isDarkMode) {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-  }, [isDarkMode]);
-
-  useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         const currentUser = session?.user;
         setUser(currentUser ?? null);
+
+        // --- NEW: Fetch from 'profiles' table when user is available ---
+        if (currentUser) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("profile_picture_url")
+            .eq("id", currentUser.id)
+            .single();
+          setProfile(profileData);
+        } else {
+          setProfile(null); // Clear profile on logout
+        }
+
         if (!currentUser && location.pathname !== "/signin") {
           navigate("/signin");
         }
@@ -141,11 +140,12 @@ export default function Layout() {
       </div>
     );
   }
+  
+  // --- CORRECTED --- Prioritize custom profile picture, then OAuth avatar, then fallback
+  const avatarUrl = profile?.profile_picture_url || user?.user_metadata?.avatar_url;
 
-  // --- CHANGE: Root layout is now a flex column to support the top header ---
   return (
-    <div className="h-screen bg-background text-foreground flex flex-col">
-      {/* --- CHANGE: The sidebar <aside> is now a horizontal <header> --- */}
+    <div className="h-screen bg-gray-950 text-white flex flex-col">
       <header className="sticky top-0 z-50 w-full h-20 flex items-center justify-between px-6 bg-gray-900/80 backdrop-blur-lg border-b border-white/10">
         <div className="flex items-center gap-6">
           <Link to="/dashboard" className="flex items-center gap-3">
@@ -160,7 +160,6 @@ export default function Layout() {
               NexaGen AI
             </h1>
           </Link>
-          {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-4">
             {navigationItems.map((item) => (
               <NavLink
@@ -180,26 +179,19 @@ export default function Layout() {
           </nav>
         </div>
 
-        {/* Right side controls */}
         <div className="flex items-center gap-4">
-          
           <DropdownMenu>
             <DropdownMenuTrigger>
-              <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer">
-                {user?.user_metadata?.avatar_url ? (
+              <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-white/20 cursor-pointer bg-gray-800">
+                {avatarUrl ? (
                   <img
-                    src={user.user_metadata.avatar_url}
+                    src={avatarUrl}
                     alt="Profile"
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <div className="w-full h-full bg-emerald-900 flex items-center justify-center text-emerald-300 font-bold">
-                    {user?.user_metadata?.full_name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("") ||
-                      user?.email?.charAt(0).toUpperCase() ||
-                      "U"}
+                    {user?.email?.charAt(0).toUpperCase() || "U"}
                   </div>
                 )}
               </div>
@@ -220,7 +212,6 @@ export default function Layout() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Mobile Menu Button */}
           <button
             className="text-gray-200 lg:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -230,14 +221,13 @@ export default function Layout() {
         </div>
       </header>
 
-      {/* --- CHANGE: This is the new mobile "slide-down" panel --- */}
       {isMobileMenuOpen && (
         <nav className="fixed top-20 left-0 w-full h-[calc(100vh-5rem)] bg-gray-950/95 backdrop-blur-xl p-6 space-y-2 lg:hidden">
           {navigationItems.map((item) => (
             <NavLink
               key={item.title}
               to={item.to}
-              onClick={() => setIsMobileMenuOpen(false)} // Close menu on click
+              onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-4 px-4 py-3 rounded-lg font-medium text-base transition-colors ${
                   isActive
@@ -252,10 +242,20 @@ export default function Layout() {
           ))}
         </nav>
       )}
-
-      {/* --- CHANGE: Main content area is now a flex-1 container to fill remaining space --- */}
-      <main className="flex-1 overflow-y-auto">
+      
+      <main className="flex-1 overflow-y-auto relative">
         <Outlet />
+        
+        {/* --- CORRECTED --- Floating button now hides on the AI Assistant page --- */}
+        {location.pathname !== '/ai-assistant' && (
+          <Link
+            to="/ai-assistant"
+            className="fixed bottom-8 right-8 z-40 w-16 h-16 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-300"
+            title="AI Career Assistant"
+          >
+            <MessageSquare className="w-8 h-8 text-white" />
+          </Link>
+        )}
       </main>
     </div>
   );

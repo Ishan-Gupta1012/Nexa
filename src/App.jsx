@@ -8,11 +8,11 @@ import SignIn from './pages/SignIn.jsx';
 import AIAssistant from './pages/AIAssistant.jsx';
 import ResumeAnalyzer from './pages/ResumeAnalyzer.jsx';
 import CareerRoadmap from './pages/CareerRoadmap.jsx';
-import SkillAssessment from './pages/SkillAssessment.jsx';
+
 import LearningHub from './pages/LearningHub.jsx';
 import AboutUs from './pages/AboutUs.jsx';
 import ResumePreview from './pages/ResumePreview.jsx';
-
+import InterviewPrep from './pages/InterviewPrep.jsx'; // --- NEW IMPORT ---
 function App() {
   return (
     <Routes>
@@ -25,8 +25,9 @@ function App() {
         <Route path="resume-builder" element={<ResumeBuilder />} />
         <Route path="ai-assistant" element={<AIAssistant />} />
         <Route path="resume-analyzer" element={<ResumeAnalyzer />} />
+        <Route path="interview-prep" element={<InterviewPrep />} /> {/* --- NEW ROUTE --- */}
         <Route path="career-roadmap" element={<CareerRoadmap />} />
-        <Route path="skill-assessment" element={<SkillAssessment />} />
+        
         <Route path="learning-hub" element={<LearningHub />} />
         <Route path="about-us" element={<AboutUs />} />
       </Route>

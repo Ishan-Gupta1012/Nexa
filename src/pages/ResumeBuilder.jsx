@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
-import { Loader2, Save, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react";
+import { fetchWithRetry, getApiKey } from "../utils/api.js";
+import { Loader2, Save, Plus, Trash2, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import ResumeDisplay from "../components/resume_templates/ResumeDisplay.jsx";
 
 const initialResumeState = {
@@ -43,6 +44,7 @@ export default function ResumeBuilder() {
   const [resumeData, setResumeData] = useState(initialResumeState);
   const [activeSection, setActiveSection] = useState("Personal");
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingBulletsFor, setIsGeneratingBulletsFor] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +87,52 @@ export default function ResumeBuilder() {
 
   const removeItem = (section, index) =>
     setResumeData((p) => ({ ...p, [section]: p[section].filter((_, i) => i !== index) }));
+
+  const handleGenerateSuggestions = async (index) => {
+    const experienceItem = resumeData.experience[index];
+    if (!experienceItem.title) {
+      alert("Please enter a 'Job Title' first to generate suggestions.");
+      return;
+    }
+    setIsGeneratingBulletsFor(index);
+    try {
+      const prompt = `You are a professional resume writer. Based on the job title "${experienceItem.title}" and the company "${experienceItem.company}", generate 3-4 concise, action-oriented bullet points that highlight key achievements. If the user has provided some notes in the description below, use them for context. Use the STAR (Situation, Task, Action, Result) method where possible. Start each bullet point with an action verb.
+      
+      User's notes (if any): "${experienceItem.description}"
+
+      Return ONLY a valid JSON object with the structure: { "bullet_points": ["string"] }`;
+
+      const apiKey = getApiKey();
+      const response = await fetchWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" },
+          }),
+        }
+      );
+      if (!response.ok) throw new Error("AI suggestion failed");
+
+      const data = await response.json();
+      const jsonString = data.candidates[0].content.parts[0].text;
+      const result = JSON.parse(jsonString);
+
+      if (result.bullet_points && result.bullet_points.length > 0) {
+        const list = [...resumeData.experience];
+        list[index].description = result.bullet_points.map(bp => `- ${bp}`).join('\n');
+        setResumeData((p) => ({ ...p, experience: list }));
+      }
+
+    } catch (error) {
+      console.error("Error generating suggestions:", error);
+      alert("Failed to generate suggestions. Please try again.");
+    } finally {
+      setIsGeneratingBulletsFor(null);
+    }
+  };
 
   const handleSaveAndPreview = async () => {
     setIsSaving(true);
@@ -157,7 +205,29 @@ export default function ResumeBuilder() {
                     <FormInput id="start_date" placeholder="Start Date (e.g., Jan 2020)" value={exp.start_date} onChange={(e) => handleItemChange(i, "experience", e)} />
                     <FormInput id="end_date" placeholder="End Date (e.g., Present)" value={exp.end_date} onChange={(e) => handleItemChange(i, "experience", e)} />
                   </div>
-                  <FormTextarea id="description" placeholder="Describe your role and achievements..." value={exp.description} onChange={(e) => handleItemChange(i, "experience", e)} />
+                  <div>
+                    <FormTextarea 
+                      id="description" 
+                      placeholder="Describe your role and achievements, or add notes for the AI..." 
+                      value={exp.description} 
+                      onChange={(e) => handleItemChange(i, "experience", e)} 
+                      rows={5}
+                    />
+                    <div className="text-right -mt-11 mr-2">
+                       <button 
+                         onClick={() => handleGenerateSuggestions(i)} 
+                         disabled={isGeneratingBulletsFor !== null}
+                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600/50 text-purple-200 text-xs font-semibold rounded-lg hover:bg-purple-600/80 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                       >
+                         {isGeneratingBulletsFor === i ? (
+                           <Loader2 size={14} className="animate-spin" />
+                         ) : (
+                           <Sparkles size={14} />
+                         )}
+                         AI Suggest
+                       </button>
+                    </div>
+                  </div>
                 </div>
               ))}
               <button onClick={() => addItem("experience")} className="text-sm font-semibold text-emerald-400 hover:text-emerald-300">

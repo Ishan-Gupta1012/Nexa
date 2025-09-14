@@ -19,3 +19,28 @@ export async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
     }
     throw new Error("API rate limit exceeded after multiple retries. Please try again later.");
 }
+
+// --- NEW --- API Key Pool Logic
+const apiKeys = [
+  import.meta.env.VITE_GEMINI_API_KEY_1,
+  import.meta.env.VITE_GEMINI_API_KEY_2,
+  import.meta.env.VITE_GEMINI_API_KEY_3,
+  import.meta.env.VITE_GEMINI_API_KEY_4,
+  import.meta.env.VITE_GEMINI_API_KEY_5,
+  import.meta.env.VITE_GEMINI_API_KEY_6,
+  import.meta.env.VITE_GEMINI_API_KEY_7,
+  import.meta.env.VITE_GEMINI_API_KEY_8,
+  // Add more keys here if you have them
+].filter(Boolean); // Filter out any undefined keys
+
+if (apiKeys.length === 0) {
+  console.error("No Gemini API keys found in .env file. Please add them.");
+}
+
+export function getApiKey() {
+  if (apiKeys.length === 0) {
+    throw new Error("No API keys available.");
+  }
+  const randomIndex = Math.floor(Math.random() * apiKeys.length);
+  return apiKeys[randomIndex];
+}

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
-// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
-import { fetchWithRetry } from "../utils/api.js";
+import { fetchWithRetry, getApiKey } from "../utils/api.js";
 import {
   Sparkles,
   FileText,
@@ -13,11 +12,13 @@ import {
   Target,
   X,
   Loader2,
+  Mic, // --- NEW: Import Mic icon ---
 } from "lucide-react";
 import StatCard from "../components/UI/StatCard.jsx";
 import ActionCard from "../components/UI/ActionCard.jsx";
+import SkillGapWidget from "../components/UI/SkillGapWidget.jsx";
 
-// A new component for the main action grid for better organization
+// --- UPDATED: MainActions component with correct link and icon ---
 const MainActions = () => (
   <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-lg p-6 h-full">
     <h2 className="text-2xl font-bold text-white mb-4">
@@ -46,11 +47,11 @@ const MainActions = () => (
         link="/career-roadmap"
       />
       <ActionCard
-        title="Take an Assessment"
-        description="Test your skills with a custom quiz"
-        icon="Brain"
+        title="Prepare for Interviews"
+        description="Practice with an AI interviewer"
+        icon="Mic" // Or use "Mic" if you prefer
         color="pink"
-        link="/skill-assessment"
+        link="/interview-prep"
       />
     </div>
   </div>
@@ -58,26 +59,25 @@ const MainActions = () => (
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [latestRoadmap, setLatestRoadmap] = useState(null);
   const [stats, setStats] = useState({
     resumes: 0,
     roadmaps: 0,
-    assessments: 0,
+    interviews: 0,
     certifications: 0,
   });
   const [loading, setLoading] = useState(true);
   const [showProfileReminder, setShowProfileReminder] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
   useEffect(() => {
     const fetchData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
       if (user) {
-        const [profileRes, resumeRes, roadmapRes, assessmentRes] =
+        const [profileRes, resumeRes, roadmapRes, interviewsRes, latestRoadmapRes] =
           await Promise.all([
             supabase
               .from("profiles")
@@ -92,36 +92,48 @@ export default function Dashboard() {
               .from("career_roadmaps")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id),
+            // --- CORRECTED: Querying the correct table name 'interview_sessions' ---
             supabase
-              .from("skill_assessments")
+              .from("interview_sessions")
               .select("*", { count: "exact", head: true })
+              .eq("user_id", user.id),
+            supabase
+              .from("career_roadmaps")
+              .select("*")
               .eq("user_id", user.id)
-              .eq("completed", true),
+              .order("created_at", { ascending: false })
+              .limit(1),
+              
           ]);
 
-        const { data: profile, error: profileError } = profileRes;
-        if (!profile && !profileError) {
+        const { data: profileData, error: profileError } = profileRes;
+        if (!profileData && !profileError) {
           setShowProfileReminder(true);
+        } else if (profileData) {
+          setProfile(profileData);
+        }
+
+        if (latestRoadmapRes.data) {
+          setLatestRoadmap(latestRoadmapRes.data);
         }
 
         setStats({
           resumes: resumeRes.count || 0,
           roadmaps: roadmapRes.count || 0,
-          assessments: assessmentRes.count || 0,
-          certifications: profile?.certifications?.length || 0,
+          interviews: interviewsRes.count || 0,
+          certifications: profileData?.certifications?.length || 0,
         });
 
-        if (profile) {
-          const prompt = `Based on this user's profile (Role: ${profile.current_role}, Goal: ${profile.career_goals}), provide one single, short, and actionable suggestion for their next career step. Be encouraging.`;
+        if (profileData) {
+          const prompt = `Based on this user's profile (Role: ${profileData.current_role}, Goal: ${profileData.career_goals}), provide one single, short, and actionable suggestion for their next career step. Be encouraging.`;
           try {
+            const apiKey = getApiKey();
             const response = await fetchWithRetry(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: prompt }] }],
-                }),
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
               }
             );
             if (response.ok) {
@@ -150,7 +162,6 @@ export default function Dashboard() {
 
   return (
     <div className="relative overflow-hidden p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Background Glows */}
       <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob"></div>
       <div className="absolute top-0 -right-4 w-72 h-72 bg-emerald-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
       <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-600 rounded-full mix-blend-lighten filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
@@ -161,15 +172,13 @@ export default function Dashboard() {
         </h1>
       </div>
 
-      {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-        {/* Left Column (Main Content) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10 items-start">
         <div className="lg:col-span-2 space-y-8">
+          <SkillGapWidget profile={profile} roadmap={latestRoadmap} />
           {aiSuggestion && (
             <div className="bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-xl shadow-lg p-6">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-400" /> Your AI-Powered
-                Next Step
+                <Sparkles className="w-5 h-5 text-purple-400" /> Your AI-Powered Next Step
               </h3>
               <p className="mt-2 text-gray-300">{aiSuggestion}</p>
             </div>
@@ -177,8 +186,7 @@ export default function Dashboard() {
           <MainActions />
         </div>
 
-        {/* Right Column (Stats) */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:sticky lg:top-24">
           <h2 className="text-2xl font-bold text-white">Your Stats</h2>
           <StatCard
             icon="FileText"
@@ -192,10 +200,11 @@ export default function Dashboard() {
             value={stats.roadmaps}
             color="blue"
           />
+          {/* --- UPDATED: StatCard for Interviews --- */}
           <StatCard
-            icon="Brain"
-            label="Skills Assessed"
-            value={stats.assessments}
+            icon="Mic" // Or "Mic"
+            label="Interviews Practiced"
+            value={stats.interviews}
             color="purple"
           />
           <StatCard
