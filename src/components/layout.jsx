@@ -1,30 +1,25 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  Outlet,
-  NavLink,
-} from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import {
   LayoutDashboard,
   FileText,
   Search,
   Map,
-  Brain,
-  BookOpen,
   MessageSquare,
   User as UserIcon,
   Menu,
   Info,
   LogOut,
   Loader2,
+  Mic,
+  Lightbulb,
+  X
 } from "lucide-react";
 import nexaGenLogo from "../assets/logo.png";
+import BackgroundAnimation from "./UI/BackgroundAnimation.jsx";
+import ChatWidget from "./UI/ChatWidget.jsx";
 
-// Dropdown components
 const DropdownMenuContext = React.createContext();
 
 const DropdownMenu = ({ children }) => {
@@ -86,16 +81,17 @@ const navigationItems = [
   { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { title: "Resume Builder", to: "/resume-builder", icon: FileText },
   { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
-  {title: "Interview Prep", to: "/interview-prep", icon: Search }, // --- NEW ITEM ---
-  { title: "Career Roadmap", to: "/career-roadmap", icon: Map },
-    { title: "Learning Hub", to: "/learning-hub", icon: BookOpen },
+  { title: "Interview Prep", to: "/interview-prep", icon: Mic },
+  { title: "Career Explorer", to: "/career-explorer", icon: Map },
+  { title: "Strategies", to: "/strategies", icon: Lightbulb },
 ];
 
 export default function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null); // --- NEW: State for profile data ---
+  const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -105,7 +101,6 @@ export default function Layout() {
         const currentUser = session?.user;
         setUser(currentUser ?? null);
 
-        // --- NEW: Fetch from 'profiles' table when user is available ---
         if (currentUser) {
           const { data: profileData } = await supabase
             .from("profiles")
@@ -114,7 +109,7 @@ export default function Layout() {
             .single();
           setProfile(profileData);
         } else {
-          setProfile(null); // Clear profile on logout
+          setProfile(null);
         }
 
         if (!currentUser && location.pathname !== "/signin") {
@@ -133,6 +128,11 @@ export default function Layout() {
     navigate("/signin");
   };
 
+  const gridBackgroundStyle = {
+    backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px)',
+    backgroundSize: '2rem 2rem',
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
@@ -141,12 +141,12 @@ export default function Layout() {
     );
   }
   
-  // --- CORRECTED --- Prioritize custom profile picture, then OAuth avatar, then fallback
   const avatarUrl = profile?.profile_picture_url || user?.user_metadata?.avatar_url;
 
   return (
     <div className="h-screen bg-gray-950 text-white flex flex-col">
-      <header className="sticky top-0 z-50 w-full h-20 flex items-center justify-between px-6 bg-gray-900/80 backdrop-blur-lg border-b border-white/10">
+      <BackgroundAnimation />
+      <header className="sticky top-0 z-40 w-full h-20 flex items-center justify-between px-6 bg-gray-900/80 backdrop-blur-lg border-b border-white/10">
         <div className="flex items-center gap-6">
           <Link to="/dashboard" className="flex items-center gap-3">
             <div className="w-12 h-12 flex items-center justify-center">
@@ -202,9 +202,6 @@ export default function Layout() {
               <DropdownMenuItem onSelect={() => navigate("/profile")}>
                 <UserIcon className="mr-2 h-4 w-4" /> Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => navigate("/about-us")}>
-                <Info className="mr-2 h-4 w-4" /> About Us
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" /> Log out
@@ -222,7 +219,7 @@ export default function Layout() {
       </header>
 
       {isMobileMenuOpen && (
-        <nav className="fixed top-20 left-0 w-full h-[calc(100vh-5rem)] bg-gray-950/95 backdrop-blur-xl p-6 space-y-2 lg:hidden">
+        <nav className="fixed top-20 left-0 w-full h-[calc(100vh-5rem)] bg-gray-950/95 backdrop-blur-xl p-6 space-y-2 lg:hidden z-30">
           {navigationItems.map((item) => (
             <NavLink
               key={item.title}
@@ -243,19 +240,18 @@ export default function Layout() {
         </nav>
       )}
       
-      <main className="flex-1 overflow-y-auto relative">
+      <main className="flex-1 overflow-y-auto relative" style={gridBackgroundStyle}>
         <Outlet />
         
-        {/* --- CORRECTED --- Floating button now hides on the AI Assistant page --- */}
-        {location.pathname !== '/ai-assistant' && (
-          <Link
-            to="/ai-assistant"
-            className="fixed bottom-8 right-8 z-40 w-16 h-16 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-300"
-            title="AI Career Assistant"
-          >
-            <MessageSquare className="w-8 h-8 text-white" />
-          </Link>
-        )}
+        <button
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="fixed bottom-8 right-8 z-40 w-16 h-16 bg-gradient-to-r from-emerald-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all duration-300"
+          title="AI Career Assistant"
+        >
+          {isChatOpen ? <X className="w-8 h-8 text-white" /> : <MessageSquare className="w-8 h-8 text-white" />}
+        </button>
+
+        {isChatOpen && <ChatWidget onClose={() => setIsChatOpen(false)} />}
       </main>
     </div>
   );

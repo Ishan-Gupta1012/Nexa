@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-
 import { fetchWithRetry, getApiKey } from "../utils/api";
 import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft } from "lucide-react";
+import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
 
 // --- Speech Recognition Setup for best performance ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -171,7 +171,14 @@ export default function InterviewPrep() {
         }
     };
 
-    return <div className="h-full flex flex-col">{renderView()}</div>;
+    return (
+        <div className="relative h-full flex flex-col bg-gray-950 text-white">
+            <BackgroundAnimation />
+            <div className="relative z-10 h-full flex flex-col">
+                {renderView()}
+            </div>
+        </div>
+    );
 }
 
 // --- Child Components for each View ---

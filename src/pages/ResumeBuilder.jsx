@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient.js";
 import { fetchWithRetry, getApiKey } from "../utils/api.js";
 import { Loader2, Save, Plus, Trash2, ArrowRight, ArrowLeft, Sparkles } from "lucide-react";
 import ResumeDisplay from "../components/resume_templates/ResumeDisplay.jsx";
+import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
 
 const initialResumeState = {
   template: "modern",
@@ -18,7 +19,6 @@ const initialResumeState = {
 
 const sections = ["Personal", "Summary", "Experience", "Education", "Skills", "Projects", "Finalize"];
 
-// Reusable Input Component for dark theme
 const FormInput = ({ id, placeholder, value, onChange }) => (
     <input 
         id={id} 
@@ -80,7 +80,7 @@ export default function ResumeBuilder() {
     let newItem;
     if (section === "experience") newItem = { id: Date.now(), title: "", company: "", location: "", start_date: "", end_date: "", description: "" };
     else if (section === "education") newItem = { id: Date.now(), degree: "", field: "", university: "", graduation_date: "" };
-    else if (section === "projects") newItem = { id: Date.now(), title: "", description: "" };
+    else if (section === "projects") newItem = { id: Date.now(), title: "", description: "", link: "" };
      
     setResumeData((p) => ({ ...p, [section]: [...(p[section] || []), newItem] }));
   };
@@ -280,6 +280,7 @@ export default function ResumeBuilder() {
                         <Trash2 size={16} />
                     </button>
                     <FormInput id="title" placeholder="Project Title" value={proj.title} onChange={(e) => handleItemChange(i, "projects", e)} />
+                    <FormInput id="link" placeholder="Project Link (e.g., GitHub, Live Demo)" value={proj.link} onChange={(e) => handleItemChange(i, "projects", e)} />
                     <FormTextarea id="description" placeholder="Project Description" value={proj.description} onChange={(e) => handleItemChange(i, "projects", e)} />
                 </div>
                 ))}
@@ -308,8 +309,9 @@ export default function ResumeBuilder() {
   };
 
   return (
-    <div className="min-h-full bg-gray-950 text-white">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-4 sm:p-8 items-start">
+    <div className="min-h-full bg-gray-950 text-white relative overflow-hidden">
+      <BackgroundAnimation />
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-8 p-4 sm:p-8 items-start">
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl space-y-6 h-[85vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6 flex-wrap gap-2 border-b border-white/10 pb-4">
             {sections.map((section) => (

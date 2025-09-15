@@ -10,10 +10,10 @@ import diwakarImage from '../assets/Diwakar.png'; // Assuming diwakar.png is Ima
 
 
 const teamMembers = [
-  { name: "Ishan Gupta", role: "Frontend Developer", image: ishanImage }, // Changed to Image 3
-  { name: "Kshitij Garg", role: "Backend Developer", image: kshitijImage }, // Changed to Image 1
-  { name: "Rahul Kumar", role: "Full Stack Developer", image: rahulImage }, // Changed to Image 2
-  { name: "Diwakar Mishra", role: "API Developer", image: diwakarImage } // Changed to Image 4
+  { name: "Ishan Gupta",image: ishanImage }, // Changed to Image 3
+  { name: "Kshitij Garg", image: kshitijImage }, // Changed to Image 1
+  { name: "Rahul Kumar", image: rahulImage }, // Changed to Image 2
+  { name: "Diwakar Mishra", image: diwakarImage } // Changed to Image 4
 ];
 
 export default function AboutUs() {

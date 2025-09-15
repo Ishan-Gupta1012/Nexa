@@ -58,7 +58,6 @@
     @apply bg-background text-foreground;
   }
 
-  /* --- NEW --- Custom Scrollbar Styling */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -67,12 +66,22 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: rgba(107, 114, 128, 0.5); /* gray-500 with 50% opacity */
+    background-color: rgba(107, 114, 128, 0.5);
     border-radius: 4px;
     border: 2px solid transparent;
     background-clip: content-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(156, 163, 175, 0.5); /* gray-400 with 50% opacity */
+    background-color: rgba(156, 163, 175, 0.5);
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
 }
