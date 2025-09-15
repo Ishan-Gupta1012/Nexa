@@ -13,13 +13,13 @@ import InterviewPrep from './pages/InterviewPrep.jsx';
 import Strategies from './pages/Strategies.jsx';
 
 export const routes = [
-  // { path: "/signin", element: <SignIn /> },
+  { path: "/signin", element: <SignIn /> },
   { path: "/resume-preview", element: <ResumePreview /> },
   {
     path:"/",
-    element: <SignIn />,
+    element: <Layout />,
     children: [
-      // { index: true, element: <Dashboard /> },
+      { index: true, element: <Dashboard /> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/profile", element: <Profile /> },
       { path: "/resume-builder", element: <ResumeBuilder /> },
