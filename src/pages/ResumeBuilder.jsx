@@ -352,4 +352,4 @@ export default function ResumeBuilder() {
       </div>
     </div>
   );
-}
+} 
