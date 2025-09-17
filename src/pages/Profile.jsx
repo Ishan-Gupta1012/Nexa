@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "../supabaseClient.js";
-import { fetchWithRetry, getApiKey } from "../utils/api.js";
+// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
+import { fetchWithRetry } from "../utils/api.js";
 import {
   User,
   Camera,
@@ -15,7 +16,6 @@ import {
   Star,
   Sparkles,
 } from "lucide-react";
-import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
 
 const initialProfileState = {
   profile_picture_url: "",
@@ -61,6 +61,7 @@ const Badge = ({ label, color, onRemove, isEditing = false }) => {
   );
 };
 
+// --- VIEW MODE COMPONENT ---
 const ProfileView = ({ formData, onEdit, completeness }) => {
   const InfoCard = ({ title, icon: Icon, children }) => (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl shadow-lg h-full">
@@ -202,6 +203,7 @@ const ProfileView = ({ formData, onEdit, completeness }) => {
   );
 };
 
+// --- EDIT MODE COMPONENT ---
 const ProfileEditForm = ({
   formData,
   setFormData,
@@ -481,7 +483,7 @@ const ProfileEditForm = ({
                 id="new-skill-input"
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
-                onKeyPress={(e) =>
+                onKeyDown={(e) =>
                   e.key === "Enter" && addTag("skills", newSkill, setNewSkill)
                 }
                 placeholder="Add a skill..."
@@ -512,7 +514,7 @@ const ProfileEditForm = ({
                 id="new-cert-input"
                 value={newCert}
                 onChange={(e) => setNewCert(e.target.value)}
-                onKeyPress={(e) =>
+                onKeyDown={(e) =>
                   e.key === "Enter" &&
                   addTag("certifications", newCert, setNewCert)
                 }
@@ -571,6 +573,7 @@ const ProfileEditForm = ({
   );
 };
 
+// --- MAIN PROFILE COMPONENT ---
 export default function Profile() {
   const [formData, setFormData] = useState(initialProfileState);
   const [originalData, setOriginalData] = useState(initialProfileState);
@@ -583,7 +586,21 @@ export default function Profile() {
   const [isSuggesting, setIsSuggesting] = useState(false);
 
   const completeness = useMemo(() => {
-    const fields = [ "full_name", "email", "phone", "location", "linkedin", "career_goals", "current_role", "experience_level", "industry", "education_degree", "education_field", "education_university", "education_graduation_year" ];
+    const fields = [
+      "full_name",
+      "email",
+      "phone",
+      "location",
+      "linkedin",
+      "career_goals",
+      "current_role",
+      "experience_level",
+      "industry",
+      "education_degree",
+      "education_field",
+      "education_university",
+      "education_graduation_year",
+    ];
     let filledFields = fields.filter((field) => !!formData[field]).length;
     if (formData.skills?.length > 0) filledFields++;
     if (formData.certifications?.length > 0) filledFields++;
@@ -593,53 +610,179 @@ export default function Profile() {
   }, [formData]);
 
   useEffect(() => {
-    // ... (fetchProfile logic remains the same)
+    const fetchProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        if (error && error.code !== "PGRST116") {
+          console.error("Error fetching profile:", error);
+        } else if (data) {
+          const profileData = {
+            ...initialProfileState,
+            ...data,
+            skills: data.skills || [],
+            certifications: data.certifications || [],
+          };
+          setFormData(profileData);
+          setOriginalData(profileData);
+          setIsEditing(false);
+        } else {
+          const newUserData = {
+            ...initialProfileState,
+            full_name: user.user_metadata?.full_name || "",
+            email: user.email,
+            profile_picture_url: user.user_metadata?.avatar_url || "",
+          };
+          setFormData(newUserData);
+          setOriginalData(newUserData);
+          setIsEditing(true);
+        }
+      }
+      setLoading(false);
+    };
+    fetchProfile();
   }, []);
 
-  // ... (all handler functions remain the same)
-  
+  const handleSave = async () => {
+    setSaving(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return alert("You must be logged in.");
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ ...formData, id: user.id, updated_at: new Date() });
+    if (error) {
+      alert("Failed to save profile.");
+    } else {
+      alert("Profile saved successfully!");
+      setOriginalData(formData);
+      setIsEditing(false);
+    }
+    setSaving(false);
+  };
+
+  const handleCancel = () => {
+    setFormData(originalData);
+    setIsEditing(false);
+  };
+
+  const handlePictureUpload = async (e) => {
+    const file = e.target.files[0];
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!file || !user) return;
+    setUploading(true);
+    const filePath = `${user.id}/${Date.now()}`;
+    try {
+      await supabase.storage.from("profile-pictures").upload(filePath, file);
+      const { data } = supabase.storage
+        .from("profile-pictures")
+        .getPublicUrl(filePath);
+      const publicUrl = data.publicUrl;
+
+      await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
+      await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          profile_picture_url: publicUrl,
+          avatar_url: publicUrl,
+        });
+
+      window.location.reload();
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      alert("Failed to upload image. Check storage policies.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAISuggestion = async () => {
+    setIsSuggesting(true);
+    const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+    const prompt = `Based on a user with the role "${
+      formData.current_role || "student"
+    }" and skills like "${formData.skills?.join(
+      ", "
+    )}", write one or two concise, impactful career goal statements. The tone should be ambitious but professional.`;
+    try {
+      const response = await fetchWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        }
+      );
+      if (!response.ok) throw new Error("API request failed");
+      const data = await response.json();
+      const suggestion = data.candidates[0].content.parts[0].text;
+      setFormData((prev) => ({ ...prev, career_goals: suggestion.trim() }));
+    } catch (error) {
+      console.error("AI Suggestion error:", error);
+      alert(
+        "Failed to get AI suggestion. Please ensure your API key is set up correctly."
+      );
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
-      <BackgroundAnimation />
-      <div className="relative z-10">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-            <User className="w-6 h-6 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">Your Career Profile</h1>
-            <p className="text-gray-400">
-              This data powers your personalized AI experience.
-            </p>
-          </div>
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+          <User className="w-6 h-6 text-emerald-400" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Your Career Profile</h1>
+          <p className="text-gray-400">
+            This data powers your personalized AI experience.
+          </p>
         </div>
       </div>
-      
-      <div className="relative z-10">
-        {isEditing ? (
-          <ProfileEditForm
-            formData={formData}
-            setFormData={setFormData}
-            handleSave={handleSave}
-            saving={saving}
-            uploading={uploading}
-            handlePictureUpload={handlePictureUpload}
-            onCancel={() => setIsEditing(false)}
-            newSkill={newSkill}
-            setNewSkill={setNewSkill}
-            newCert={newCert}
-            setNewCert={setNewCert}
-            handleAISuggestion={handleAISuggestion}
-            isSuggesting={isSuggesting}
-          />
-        ) : (
-          <ProfileView
-            formData={formData}
-            onEdit={() => setIsEditing(true)}
-            completeness={completeness}
-          />
-        )}
-      </div>
+
+      {isEditing ? (
+        <ProfileEditForm
+          formData={formData}
+          setFormData={setFormData}
+          handleSave={handleSave}
+          saving={saving}
+          uploading={uploading}
+          handlePictureUpload={handlePictureUpload}
+          onCancel={handleCancel}
+          newSkill={newSkill}
+          setNewSkill={setNewSkill}
+          newCert={newCert}
+          setNewCert={setNewCert}
+          handleAISuggestion={handleAISuggestion}
+          isSuggesting={isSuggesting}
+        />
+      ) : (
+        <ProfileView
+          formData={formData}
+          onEdit={() => setIsEditing(true)}
+          completeness={completeness}
+        />
+      )}
     </div>
   );
 }

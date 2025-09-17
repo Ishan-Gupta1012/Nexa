@@ -12,7 +12,8 @@ import {
   FileText,
   Map,
   Brain,
-  Award
+  Award,
+  Clock,
 } from "lucide-react";
 import nexaGenLogo from "../assets/logo.png";
 import StatCard from "../components/UI/StatCard.jsx";
@@ -32,6 +33,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showProfileReminder, setShowProfileReminder] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,6 +67,45 @@ export default function Dashboard() {
           interviews: interviewsRes.count || 0,
           certifications: profileData?.certifications?.length || 0,
         });
+
+        // --- NEW: Fetch recent activity ---
+        const [recentResumes, recentRoadmaps, recentInterviews] = await Promise.all([
+          supabase.from("resumes").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+          supabase.from("career_roadmaps").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+          supabase.from("interview_sessions").select("job_title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+        ]);
+        
+        const activities = [];
+        if (recentResumes.data) {
+          recentResumes.data.forEach(item => activities.push({
+            type: "Resume created",
+            title: item.title,
+            date: item.created_at,
+            link: "/resume-builder",
+            icon: FileText
+          }));
+        }
+        if (recentRoadmaps.data) {
+          recentRoadmaps.data.forEach(item => activities.push({
+            type: "Career roadmap generated",
+            title: item.title,
+            date: item.created_at,
+            link: "/career-explorer",
+            icon: Map
+          }));
+        }
+        if (recentInterviews.data) {
+          recentInterviews.data.forEach(item => activities.push({
+            type: "Interview practiced",
+            title: item.job_title,
+            date: item.created_at,
+            link: "/interview-prep",
+            icon: Brain
+          }));
+        }
+
+        activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setRecentActivity(activities.slice(0, 5));
 
         if (profileData && profileData.current_role && profileData.career_goals) {
           const prompt = `Based on this user's profile (Role: ${profileData.current_role}, Goal: ${profileData.career_goals}), provide one single, short, and actionable suggestion for their next career step. Be encouraging.`;
@@ -171,6 +212,35 @@ export default function Dashboard() {
              <SkillGapWidget profile={profile} roadmap={latestRoadmap} />
           </section>
           
+          {/* --- NEW: Recent Activity Section --- */}
+          <section>
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-xl shadow-lg p-6">
+                <h2 className="font-bold text-lg flex items-center gap-2 mb-4">
+                    <Clock className="w-5 h-5 text-purple-400" /> Recent Activity
+                </h2>
+                {recentActivity.length > 0 ? (
+                  <ul className="space-y-3">
+                    {recentActivity.map((activity, index) => (
+                      <li key={index} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                          <activity.icon className="w-5 h-5 text-purple-400" />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-white">{activity.type}</p>
+                            <p className="text-xs text-gray-400">{activity.title}</p>
+                        </div>
+                        <p className="text-xs text-gray-500 flex-shrink-0">
+                          {new Date(activity.date).toLocaleDateString()}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-4">No recent activity found. Get started with our tools!</p>
+                )}
+            </div>
+          </section>
+
           <TrendingJobs />
 
         </div>
