@@ -3,6 +3,9 @@ import { fetchWithRetry, getApiKey } from "../utils/api";
 import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft } from "lucide-react";
 import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
 
+// Import the animated avatar image
+import interviewerAvatar from '../assets/avtar.png';
+
 // --- Speech Recognition Setup for best performance ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
@@ -23,14 +26,19 @@ export default function InterviewPrep() {
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const finalTranscriptRef = useRef('');
+    const timerRef = useRef(null);
 
     const speak = (text) => {
         if (!text || typeof window.speechSynthesis === 'undefined') return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text.replace(/_|\*/g, ''));
+        // Make the voice softer and clearer by adjusting rate and pitch
+        utterance.rate = 0.9; // A value of 1.0 is normal speed. Lowering it makes it slower and clearer.
+        utterance.pitch = 0.9; // A value of 1.0 is normal pitch. Lowering it slightly can make it sound softer.
         window.speechSynthesis.speak(utterance);
     };
 
+    // This useEffect will now only handle the speaking of the bot's messages
     useEffect(() => {
         if (currentView === 'interviewing' && messages.length > 0) {
             const lastMessage = messages[messages.length - 1];
@@ -47,7 +55,7 @@ export default function InterviewPrep() {
         const initialMessage = `Alright, let's begin your interview simulation for the **${jobTitle}** position. I'll be your interviewer today.`;
         setMessages([{ id: Date.now(), type: "bot", content: initialMessage }]);
         setTranscript([{ speaker: 'SYSTEM', text: `Interview for role: ${jobTitle}` }]);
-        
+
         try {
             const systemPrompt = `You are an expert interviewer hiring for a "${jobTitle}" position. Start by introducing yourself briefly and then ask the first relevant question (it can be behavioral or technical). Ask only one question at a time.`;
             const apiKey = getApiKey();
@@ -67,25 +75,37 @@ export default function InterviewPrep() {
         }
     };
 
-    const sendAnswer = async () => {
-        const message = inputMessage.trim();
-        if (!message || isLoading) return;
+    const sendAnswer = async (isTimeout = false) => {
+        const message = isTimeout ? 'User did not respond within 20 seconds.' : inputMessage.trim();
+        const lastBotMessage = messages[messages.length - 1]?.content;
+
+        if (message.toLowerCase().includes('repeat') || message.toLowerCase().includes('can you repeat')) {
+             if (lastBotMessage) {
+                speak(lastBotMessage);
+            }
+            setInputMessage("");
+            return;
+        }
+
+        if ((!message && !isTimeout) || isLoading) return;
 
         window.speechSynthesis.cancel();
-        const userMessage = { id: Date.now(), type: "user", content: message };
-        setMessages(prev => [...prev, userMessage]);
-        setTranscript(prev => [...prev, { speaker: 'USER', text: message }]);
+        if (!isTimeout) {
+            const userMessage = { id: Date.now(), type: "user", content: message };
+            setMessages(prev => [...prev, userMessage]);
+            setTranscript(prev => [...prev, { speaker: 'USER', text: message }]);
+        }
         setInputMessage("");
         setIsLoading(true);
 
         try {
             const apiKey = getApiKey();
-            const systemPrompt = `The user has just answered your previous question for the "${jobTitle}" role. Provide brief, constructive feedback on their answer in italics, and then ask the next logical question. Ask only one question at a time.`;
             const conversationHistory = [...transcript, { speaker: 'USER', text: message }].map(entry => ({
                 role: entry.speaker === 'USER' ? 'user' : 'model', parts: [{ text: entry.text }]
             }));
-            conversationHistory.unshift({ role: 'user', parts: [{ text: systemPrompt }] });
-            
+            const prompt = `The user has just answered your previous question for the "${jobTitle}" role, or has asked a question about the interview process. If their message is a question about the process (e.g., "how does this work?", "what's next?"), answer it directly and briefly, and then wait for their response to the interview question. If their message is an answer to the interview question, provide brief, constructive feedback in italics, and then ask the next logical question. Ask only one question or provide one piece of feedback at a time.`;
+            conversationHistory.unshift({ role: 'user', parts: [{ text: prompt }] });
+
             const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: conversationHistory }),
             });
@@ -101,11 +121,24 @@ export default function InterviewPrep() {
             setIsLoading(false);
         }
     };
-    
+
+    useEffect(() => {
+        if (currentView === 'interviewing' && !isLoading) {
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(() => {
+                sendAnswer(true);
+            }, 20000); // 20-second timer
+        }
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, [currentView, isLoading, messages]);
+
     const endInterviewAndGetFeedback = async () => {
         window.speechSynthesis.cancel();
         setIsLoading(true);
         setCurrentView('feedback');
+        if (timerRef.current) clearTimeout(timerRef.current);
         try {
             const transcriptText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n\n');
             const prompt = `You are an expert HR manager and interview coach from a top tech company. Analyze the following interview transcript for a "${jobTitle}" position. The user's answers are transcribed from speech. Based on the transcript, provide a detailed performance report. Return ONLY a valid JSON object with the following structure: { "clarity_confidence_score": number (1-100, analyze the user's language for filler words like 'um', 'ah', 'like', and sentence structure to infer confidence and clarity), "star_method_score": number (1-100, evaluate how well the user's answers to behavioral questions followed the STAR method), "keyword_score": number (1-100, assess the use of relevant industry and job-specific keywords), "overall_feedback": "string (a summary of the user's performance)", "strengths": ["string (list of 2-3 key strengths with examples from the transcript)"], "areas_for_improvement": ["string (list of 2-3 actionable improvement areas with examples)"] }`;
@@ -144,6 +177,7 @@ export default function InterviewPrep() {
                 }
             }
             setInputMessage(finalTranscriptRef.current + interimTranscript);
+            if(timerRef.current) clearTimeout(timerRef.current); // Clear timeout when user starts speaking
         };
         recognition.onerror = (event) => {
             console.error("Speech recognition error:", event.error);
@@ -153,7 +187,7 @@ export default function InterviewPrep() {
             setIsListening(false);
         };
     }, [isListening, inputMessage]);
-    
+
     const reset = () => {
         setJobTitle('');
         setMessages([]);
@@ -215,24 +249,22 @@ function InterviewSessionView({ messages, isLoading, inputMessage, setInputMessa
                 </div>
                 <button onClick={endInterviewAndGetFeedback} disabled={isLoading} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg disabled:bg-gray-600 flex-shrink-0">End & Get Feedback</button>
             </div>
-            <div className="flex-1 p-4 pt-6 sm:p-6 overflow-y-auto">
-                <div className="space-y-6 max-w-4xl mx-auto">
-                    {messages.map((message) => (
-                         <div key={message.id} className={`flex gap-3 ${message.type === "user" ? "justify-end" : "justify-start"}`}>
-                            {message.type === "bot" && ( <div className="w-8 h-8 bg-purple-800 rounded-full flex items-center justify-center flex-shrink-0 mt-1"><Mic className="w-4 h-4 text-purple-300" /></div>)}
-                            <div className={`max-w-[80%] rounded-xl p-3 shadow-md ${message.type === "user" ? "bg-emerald-500/20 border border-emerald-400/30 text-emerald-200" : "bg-purple-500/20 border border-purple-400/30 text-purple-200"}`}><p className="text-sm leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: message.content.replace(/\_(.*?)\_/g, '<i>$1</i>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></p></div>
-                            {message.type === "user" && (<div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center flex-shrink-0 mt-1"><UserIcon className="w-4 h-4 text-gray-400" /></div>)}
-                        </div>
-                    ))}
-                    {isLoading && <div className="flex gap-3 justify-start"><div className="w-8 h-8 bg-purple-800 rounded-full flex items-center justify-center flex-shrink-0 mt-1"><Mic className="w-4 h-4 text-purple-300" /></div><div className="max-w-[80%] rounded-xl p-3 bg-purple-500/20"><div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-purple-300" /><p className="text-purple-300 font-medium text-sm">AI is thinking...</p></div></div></div>}
-                    <div ref={messagesEndRef} />
+            <div className="flex-1 p-4 pt-6 sm:p-6 overflow-y-auto flex flex-col items-center justify-center">
+                <div className="relative w-60 h-60 animate-pulse-slow">
+                    <img src={interviewerAvatar} alt="AI Interviewer" className="w-full h-full object-cover rounded-full" />
                 </div>
+                 {isLoading && (
+                    <div className="mt-8 text-center flex items-center justify-center gap-2 text-purple-300">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <p className="font-medium text-sm">AI is thinking...</p>
+                    </div>
+                )}
             </div>
             <div className="p-4 sm:p-6 border-t border-purple-400/20">
                 <div className="flex gap-3 max-w-4xl mx-auto">
                     <textarea value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} onKeyPress={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendAnswer())} placeholder={isListening ? "Listening..." : "Type or use the mic to answer..."} className="flex-1 font-medium p-3 bg-gray-800 border border-gray-700 rounded-lg w-full text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500" rows={1}/>
                     {recognition && <button onClick={handleListen} disabled={isLoading} className={`font-bold px-4 py-2 rounded-lg text-white transition-colors ${isListening ? 'bg-red-600 hover:bg-red-700 animate-pulse' : 'bg-purple-600 hover:bg-purple-700'}`}><Mic className="w-5 h-5" /></button>}
-                    <button onClick={sendAnswer} disabled={!inputMessage.trim() || isLoading} className="bg-emerald-600 hover:bg-emerald-700 font-bold px-4 py-2 rounded-lg text-white disabled:bg-gray-600">{isLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : <Send className="w-5 h-5" />}</button>
+                    <button onClick={() => sendAnswer()} disabled={!inputMessage.trim() || isLoading} className="bg-emerald-600 hover:bg-emerald-700 font-bold px-4 py-2 rounded-lg text-white disabled:bg-gray-600">{isLoading ? <Loader2 className="w-5 h-5 animate-spin"/> : <Send className="w-5 h-5" />}</button>
                 </div>
             </div>
         </div>
@@ -256,7 +288,7 @@ function InterviewFeedbackView({ feedback, isLoading, reset }) {
             <p className="mt-2 text-sm font-semibold text-gray-300 w-24">{label}</p>
         </div>
     );
-    
+
     return (
         <div className="flex flex-col h-full w-full">
             <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center gap-4">
