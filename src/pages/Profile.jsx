@@ -1,7 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "../supabaseClient.js";
-// import { callGeminiApi } from '../utils/geminiApi.js'; // Import the new utility
-import { fetchWithRetry } from "../utils/api.js";
 import {
   User,
   Camera,
@@ -14,7 +12,6 @@ import {
   Target,
   BookOpen,
   Star,
-  Sparkles,
 } from "lucide-react";
 
 const initialProfileState = {
@@ -216,10 +213,10 @@ const ProfileEditForm = ({
   setNewSkill,
   newCert,
   setNewCert,
-  handleAISuggestion,
-  isSuggesting,
 }) => {
   const fileInputRef = useRef(null);
+  const skillInputRef = useRef(null);
+  const certInputRef = useRef(null);
 
   const handleInputChange = (e) => {
     const { id, value, type } = e.target;
@@ -227,11 +224,14 @@ const ProfileEditForm = ({
     setFormData((prev) => ({ ...prev, [id]: finalValue }));
   };
 
-  const addTag = (type, value, setValue) => {
+  const addTag = (type, value, setValue, inputRef) => {
     const list = formData[type] || [];
     if (value.trim() && !list.includes(value.trim())) {
       setFormData((prev) => ({ ...prev, [type]: [...list, value.trim()] }));
       setValue("");
+      if (inputRef && inputRef.current) {
+        inputRef.current.focus();
+      }
     }
   };
 
@@ -263,13 +263,60 @@ const ProfileEditForm = ({
     </div>
   );
 
-  const FormInput = ({ id, ...props }) => (
-    <input
-      id={id}
-      {...props}
-      className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-    />
-  );
+  const FormInput = React.forwardRef(({ id, ...props }, ref) => {
+    const [localValue, setLocalValue] = useState(props.value);
+    
+    useEffect(() => {
+        setLocalValue(props.value);
+    }, [props.value]);
+
+    const handleLocalChange = (e) => {
+      setLocalValue(e.target.value);
+    };
+
+    const handleBlur = (e) => {
+      props.onChange(e);
+    };
+
+    return (
+      <input
+        id={id}
+        {...props}
+        ref={ref}
+        value={localValue}
+        onChange={handleLocalChange}
+        onBlur={handleBlur}
+        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+      />
+    );
+  });
+
+  const FormTextarea = ({ id, ...props }) => {
+    const [localValue, setLocalValue] = useState(props.value);
+    
+    useEffect(() => {
+        setLocalValue(props.value);
+    }, [props.value]);
+
+    const handleLocalChange = (e) => {
+        setLocalValue(e.target.value);
+    };
+
+    const handleBlur = (e) => {
+        props.onChange(e);
+    };
+
+    return (
+      <textarea
+        id={id}
+        {...props}
+        value={localValue}
+        onChange={handleLocalChange}
+        onBlur={handleBlur}
+        className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+      />
+    );
+  };
 
   const FormSelect = ({ id, value, onChange, children }) => (
     <select
@@ -394,27 +441,12 @@ const ProfileEditForm = ({
           </FormSelect>
         </FormItem>
         <FormItem label="Career Goals" id="career_goals">
-          <div className="relative">
-            <textarea
+            <FormTextarea
               id="career_goals"
               value={formData.career_goals || ""}
               onChange={handleInputChange}
-              className="w-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-transparent pr-28"
               rows="4"
-            ></textarea>
-            <button
-              onClick={handleAISuggestion}
-              disabled={isSuggesting}
-              className="absolute top-2 right-2 inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 text-purple-300 text-xs font-semibold rounded-full hover:bg-purple-500/30"
-            >
-              {isSuggesting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}{" "}
-              AI Suggest
-            </button>
-          </div>
+            />
         </FormItem>
         <FormItem
           label="Weekly Hours for Learning"
@@ -480,16 +512,18 @@ const ProfileEditForm = ({
           <FormItem label="Skills" id="skills">
             <div className="flex gap-2">
               <FormInput
+                key="new-skill-input"
                 id="new-skill-input"
+                ref={skillInputRef}
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
                 onKeyDown={(e) =>
-                  e.key === "Enter" && addTag("skills", newSkill, setNewSkill)
+                  e.key === "Enter" && addTag("skills", newSkill, setNewSkill, skillInputRef)
                 }
                 placeholder="Add a skill..."
               />
               <button
-                onClick={() => addTag("skills", newSkill, setNewSkill)}
+                onClick={() => addTag("skills", newSkill, setNewSkill, skillInputRef)}
                 className="p-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
               >
                 <Plus className="w-5 h-5" />
@@ -511,17 +545,19 @@ const ProfileEditForm = ({
           <FormItem label="Certifications" id="certs">
             <div className="flex gap-2">
               <FormInput
+                key="new-cert-input"
                 id="new-cert-input"
+                ref={certInputRef}
                 value={newCert}
                 onChange={(e) => setNewCert(e.target.value)}
                 onKeyDown={(e) =>
                   e.key === "Enter" &&
-                  addTag("certifications", newCert, setNewCert)
+                  addTag("certifications", newCert, setNewCert, certInputRef)
                 }
                 placeholder="Add a certification..."
               />
               <button
-                onClick={() => addTag("certifications", newCert, setNewCert)}
+                onClick={() => addTag("certifications", newCert, setNewCert, certInputRef)}
                 className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Plus className="w-5 h-5" />
@@ -583,7 +619,6 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [newSkill, setNewSkill] = useState("");
   const [newCert, setNewCert] = useState("");
-  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const completeness = useMemo(() => {
     const fields = [
@@ -707,37 +742,6 @@ export default function Profile() {
     }
   };
 
-  const handleAISuggestion = async () => {
-    setIsSuggesting(true);
-    const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-    const prompt = `Based on a user with the role "${
-      formData.current_role || "student"
-    }" and skills like "${formData.skills?.join(
-      ", "
-    )}", write one or two concise, impactful career goal statements. The tone should be ambitious but professional.`;
-    try {
-      const response = await fetchWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        }
-      );
-      if (!response.ok) throw new Error("API request failed");
-      const data = await response.json();
-      const suggestion = data.candidates[0].content.parts[0].text;
-      setFormData((prev) => ({ ...prev, career_goals: suggestion.trim() }));
-    } catch (error) {
-      console.error("AI Suggestion error:", error);
-      alert(
-        "Failed to get AI suggestion. Please ensure your API key is set up correctly."
-      );
-    } finally {
-      setIsSuggesting(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="p-8 flex justify-center">
@@ -773,8 +777,6 @@ export default function Profile() {
           setNewSkill={setNewSkill}
           newCert={newCert}
           setNewCert={setNewCert}
-          handleAISuggestion={handleAISuggestion}
-          isSuggesting={isSuggesting}
         />
       ) : (
         <ProfileView
