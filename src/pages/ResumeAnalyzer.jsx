@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertTriangle,
   ClipboardPaste,
+  Briefcase, // New Icon
 } from "lucide-react";
 
 export default function ResumeAnalyzer() {
@@ -48,7 +49,6 @@ export default function ResumeAnalyzer() {
 
   const analyzeResume = async () => {
     if (!file) return alert("Please upload a resume first.");
-    if (!jobDescription.trim()) return alert("Please paste a job description.");
     setIsProcessing(true);
     setAnalysis(null);
 
@@ -67,15 +67,29 @@ export default function ResumeAnalyzer() {
           }
 
           const userSkills = profile?.skills?.join(', ') || 'Not specified';
-          const prompt = `You are an expert HR tech analyst. Analyze the provided resume text against the job description, considering the user's listed skills from their profile.
+          let prompt;
 
-            -   **Job Description**: """${jobDescription}"""
-            -   **Resume Text**: """${textContent}"""
-            -   **User's Profile Skills**: ${userSkills}
+          if (jobDescription.trim()) {
+            // --- MODIFIED PROMPT FOR JOB MATCH ---
+            prompt = `You are an expert HR tech analyst. Analyze the provided resume text against the job description, considering the user's listed skills from their profile.
 
-            Provide a 'Job Match Score' from 1-100. Also, provide a 'Missing Keywords' array with critical terms from the job description that are not in the resume, and an 'Improvement Suggestions' array with 3 actionable pieces of advice on how to better tailor the resume for this role, taking into account their existing skills.
+              - **Job Description**: """${jobDescription}"""
+              - **Resume Text**: """${textContent}"""
+              - **User's Profile Skills**: ${userSkills}
 
-            Return ONLY a valid JSON object with the structure: { "job_match_score": number, "missing_keywords": ["string"], "improvement_suggestions": ["string"] }`;
+              Provide a 'Job Match Score' from 1-100. Also, provide a 'Missing Keywords' array with critical terms from the job description that are not in the resume, an 'Improvement Suggestions' array with 3 actionable pieces of advice on how to better tailor the resume for this role, and a 'suitable_roles' array with 3-4 other job titles that would be a good fit based on the resume.
+
+              Return ONLY a valid JSON object with the structure: { "job_match_score": number, "missing_keywords": ["string"], "improvement_suggestions": ["string"], "suitable_roles": ["string"] }`;
+          } else {
+            // --- NEW PROMPT FOR GENERAL ANALYSIS ---
+            prompt = `You are an expert HR tech analyst. Analyze the following resume and identify the key skills, experiences, and qualifications. Based on this analysis, suggest 5-6 suitable job roles that the person could fit into.
+
+              - **Resume Text**: """${textContent}"""
+              - **User's Profile Skills**: ${userSkills}
+
+              Return ONLY a valid JSON object with the structure: { "suitable_roles": ["string"], "improvement_suggestions": ["string"] }`;
+          }
+
 
           const apiKey = getApiKey();
           const response = await fetchWithRetry(
@@ -117,30 +131,50 @@ export default function ResumeAnalyzer() {
 
   const AnalysisResults = () => (
     <div className="space-y-8">
-      <div className="text-center p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-2">Job Match Score</h2>
-        <p className="text-5xl font-bold">
-          {analysis.job_match_score}
-          <span className="text-3xl">/100</span>
-        </p>
-        <p className="text-purple-200 mt-1">
-          Your resume's alignment with the job description.
-        </p>
-      </div>
+      {analysis.job_match_score && (
+        <div className="text-center p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold mb-2">Job Match Score</h2>
+          <p className="text-5xl font-bold">
+            {analysis.job_match_score}
+            <span className="text-3xl">/100</span>
+          </p>
+          <p className="text-purple-200 mt-1">
+            Your resume's alignment with the job description.
+          </p>
+        </div>
+      )}
+
+      {analysis.suitable_roles && (
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl">
+              <h3 className="font-bold text-lg text-emerald-400 flex items-center gap-2">
+                  <Briefcase />
+                  Suitable Roles for You
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">Based on your resume, you might be a great fit for these roles:</p>
+              <div className="flex flex-wrap gap-2">
+                  {analysis.suitable_roles.map((item, i) => (
+                      <span key={i} className="text-sm bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full font-medium">{item}</span>
+                  ))}
+              </div>
+          </div>
+      )}
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl">
-          <h3 className="font-bold text-lg text-orange-400 flex items-center gap-2">
-            <AlertTriangle />
-            Missing Keywords
-          </h3>
-          <p className="text-xs text-gray-400 mb-4">Keywords from the job description not found in your resume.</p>
-          <div className="flex flex-wrap gap-2">
-            {analysis.missing_keywords.map((item, i) => (
-              <span key={i} className="text-xs bg-orange-500/20 text-orange-300 px-2 py-1 rounded-full">{item}</span>
-            ))}
-          </div>
-        </div>
+        {analysis.missing_keywords && (
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl">
+              <h3 className="font-bold text-lg text-orange-400 flex items-center gap-2">
+                <AlertTriangle />
+                Missing Keywords
+              </h3>
+              <p className="text-xs text-gray-400 mb-4">Keywords from the job description not found in your resume.</p>
+              <div className="flex flex-wrap gap-2">
+                {analysis.missing_keywords.map((item, i) => (
+                  <span key={i} className="text-xs bg-orange-500/20 text-orange-300 px-2 py-1 rounded-full">{item}</span>
+                ))}
+              </div>
+            </div>
+        )}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl">
           <h3 className="font-bold text-lg text-blue-400 flex items-center gap-2">
             <Lightbulb />
@@ -189,13 +223,14 @@ export default function ResumeAnalyzer() {
         </div>
       </div>
       <div>
-        <label className="font-bold text-white">2. Paste Job Description</label>
+        <label className="font-bold text-white">2. Paste Job Description (Optional)</label>
+        <p className="text-sm text-gray-400 mb-2">Leave this blank for a general analysis of your resume.</p>
         <div className="mt-2 relative">
             <ClipboardPaste className="absolute top-3 left-3 w-5 h-5 text-gray-400" />
             <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste the full job description here..."
+                placeholder="Paste the full job description here for a specific match analysis..."
                 rows="8"
                 className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
@@ -204,7 +239,7 @@ export default function ResumeAnalyzer() {
       <div className="text-center">
         <button
           onClick={analyzeResume}
-          disabled={isProcessing || !file || !jobDescription}
+          disabled={isProcessing || !file}
           className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:bg-gray-600 flex items-center justify-center mx-auto transition-colors text-lg"
         >
           {isProcessing ? (
@@ -213,7 +248,7 @@ export default function ResumeAnalyzer() {
             </>
           ) : (
             <>
-              <Search className="w-5 h-5 mr-2" /> Get Job Match Analysis
+              <Search className="w-5 h-5 mr-2" /> Analyze My Resume
             </>
           )}
         </button>

@@ -78,7 +78,7 @@ const DropdownMenuSeparator = () => (
 );
 
 const navigationItems = [
-  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { title: "Home`", to: "/dashboard", icon: LayoutDashboard },
   { title: "Resume Builder", to: "/resume-builder", icon: FileText },
   { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
   { title: "Interview Prep", to: "/interview-prep", icon: Mic },

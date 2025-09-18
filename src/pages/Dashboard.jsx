@@ -1,3 +1,5 @@
+// src/pages/Dashboard.jsx
+
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
@@ -68,7 +70,6 @@ export default function Dashboard() {
           certifications: profileData?.certifications?.length || 0,
         });
 
-        // --- NEW: Fetch recent activity ---
         const [recentResumes, recentRoadmaps, recentInterviews] = await Promise.all([
           supabase.from("resumes").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
           supabase.from("career_roadmaps").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
@@ -212,7 +213,6 @@ export default function Dashboard() {
              <SkillGapWidget profile={profile} roadmap={latestRoadmap} />
           </section>
           
-          {/* --- NEW: Recent Activity Section --- */}
           <section>
             <div className="bg-white/5 backdrop-blur-md border border-white/10 text-white rounded-xl shadow-lg p-6">
                 <h2 className="font-bold text-lg flex items-center gap-2 mb-4">
@@ -241,7 +241,7 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <TrendingJobs />
+          <TrendingJobs profile={profile} />
 
         </div>
       </div>

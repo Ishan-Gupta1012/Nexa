@@ -1,23 +1,23 @@
+// src/pages/InterviewPrep.jsx
+
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { fetchWithRetry, getApiKey } from "../utils/api";
-import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft } from "lucide-react";
+import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft, Settings, Briefcase, BarChart } from "lucide-react";
 import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
 
-// Import the animated avatar image
-import interviewerAvatar from '../assets/avtar.png';
+// Import the new local bot avatar GIF
+import interviewerAvatar from '../assets/bot-avatar.png';
 
-// --- Speech Recognition Setup for best performance ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 if (recognition) {
-  recognition.continuous = true; // Keep listening even after a pause
-  recognition.interimResults = true; // Get results as the user speaks
+  recognition.continuous = true;
+  recognition.interimResults = true;
   recognition.lang = 'en-US';
 }
 
-// --- Main Component ---
 export default function InterviewPrep() {
-    const [currentView, setCurrentView] = useState('setup'); // 'setup', 'interviewing', 'feedback'
+    const [currentView, setCurrentView] = useState('setup');
     const [jobTitle, setJobTitle] = useState('');
     const [messages, setMessages] = useState([]);
     const [transcript, setTranscript] = useState([]);
@@ -25,20 +25,36 @@ export default function InterviewPrep() {
     const [inputMessage, setInputMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [voices, setVoices] = useState([]);
+    const [selectedVoice, setSelectedVoice] = useState(null);
     const finalTranscriptRef = useRef('');
     const timerRef = useRef(null);
 
+    useEffect(() => {
+        const loadVoices = () => {
+            const availableVoices = window.speechSynthesis.getVoices();
+            if (availableVoices.length > 0) {
+                const englishVoices = availableVoices.filter(v => v.lang.startsWith('en'));
+                setVoices(englishVoices);
+                const defaultVoice = englishVoices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || englishVoices[0];
+                setSelectedVoice(defaultVoice);
+            }
+        };
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+    }, []);
+
+
     const speak = (text) => {
-        if (!text || typeof window.speechSynthesis === 'undefined') return;
+        if (!text || typeof window.speechSynthesis === 'undefined' || !selectedVoice) return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text.replace(/_|\*/g, ''));
-        // Make the voice softer and clearer by adjusting rate and pitch
-        utterance.rate = 0.9; // A value of 1.0 is normal speed. Lowering it makes it slower and clearer.
-        utterance.pitch = 0.9; // A value of 1.0 is normal pitch. Lowering it slightly can make it sound softer.
+        utterance.voice = selectedVoice;
+        utterance.rate = 0.95;
+        utterance.pitch = 1.0;
         window.speechSynthesis.speak(utterance);
     };
 
-    // This useEffect will now only handle the speaking of the bot's messages
     useEffect(() => {
         if (currentView === 'interviewing' && messages.length > 0) {
             const lastMessage = messages[messages.length - 1];
@@ -46,7 +62,7 @@ export default function InterviewPrep() {
                 speak(lastMessage.content);
             }
         }
-    }, [messages, isLoading, currentView]);
+    }, [messages, isLoading, currentView, selectedVoice]);
 
     const startInterview = async () => {
         if (!jobTitle.trim()) return alert("Please enter a job title.");
@@ -77,16 +93,6 @@ export default function InterviewPrep() {
 
     const sendAnswer = async (isTimeout = false) => {
         const message = isTimeout ? 'User did not respond within 20 seconds.' : inputMessage.trim();
-        const lastBotMessage = messages[messages.length - 1]?.content;
-
-        if (message.toLowerCase().includes('repeat') || message.toLowerCase().includes('can you repeat')) {
-             if (lastBotMessage) {
-                speak(lastBotMessage);
-            }
-            setInputMessage("");
-            return;
-        }
-
         if ((!message && !isTimeout) || isLoading) return;
 
         window.speechSynthesis.cancel();
@@ -103,7 +109,7 @@ export default function InterviewPrep() {
             const conversationHistory = [...transcript, { speaker: 'USER', text: message }].map(entry => ({
                 role: entry.speaker === 'USER' ? 'user' : 'model', parts: [{ text: entry.text }]
             }));
-            const prompt = `The user has just answered your previous question for the "${jobTitle}" role, or has asked a question about the interview process. If their message is a question about the process (e.g., "how does this work?", "what's next?"), answer it directly and briefly, and then wait for their response to the interview question. If their message is an answer to the interview question, provide brief, constructive feedback in italics, and then ask the next logical question. Ask only one question or provide one piece of feedback at a time.`;
+            const prompt = `The user has just answered your previous question for the "${jobTitle}" role. Provide brief, constructive feedback in italics, and then ask the next logical question. Ask only one question or provide one piece of feedback at a time.`;
             conversationHistory.unshift({ role: 'user', parts: [{ text: prompt }] });
 
             const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
@@ -141,7 +147,7 @@ export default function InterviewPrep() {
         if (timerRef.current) clearTimeout(timerRef.current);
         try {
             const transcriptText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n\n');
-            const prompt = `You are an expert HR manager and interview coach from a top tech company. Analyze the following interview transcript for a "${jobTitle}" position. The user's answers are transcribed from speech. Based on the transcript, provide a detailed performance report. Return ONLY a valid JSON object with the following structure: { "clarity_confidence_score": number (1-100, analyze the user's language for filler words like 'um', 'ah', 'like', and sentence structure to infer confidence and clarity), "star_method_score": number (1-100, evaluate how well the user's answers to behavioral questions followed the STAR method), "keyword_score": number (1-100, assess the use of relevant industry and job-specific keywords), "overall_feedback": "string (a summary of the user's performance)", "strengths": ["string (list of 2-3 key strengths with examples from the transcript)"], "areas_for_improvement": ["string (list of 2-3 actionable improvement areas with examples)"] }`;
+            const prompt = `You are an expert HR manager and interview coach. Analyze the interview transcript for a "${jobTitle}" position. Provide a detailed performance report. Return ONLY a valid JSON object: { "clarity_confidence_score": number(1-100), "star_method_score": number(1-100), "keyword_score": number(1-100), "overall_feedback": "string", "strengths": ["string"], "areas_for_improvement": ["string"] }`;
             const apiKey = getApiKey();
             const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: `TRANSCRIPT:\n\n${transcriptText}\n\n${prompt}` }] }], generationConfig: { responseMimeType: "application/json" } }),
@@ -177,15 +183,10 @@ export default function InterviewPrep() {
                 }
             }
             setInputMessage(finalTranscriptRef.current + interimTranscript);
-            if(timerRef.current) clearTimeout(timerRef.current); // Clear timeout when user starts speaking
+            if(timerRef.current) clearTimeout(timerRef.current);
         };
-        recognition.onerror = (event) => {
-            console.error("Speech recognition error:", event.error);
-            setIsListening(false);
-        };
-        recognition.onend = () => {
-            setIsListening(false);
-        };
+        recognition.onerror = (event) => console.error("Speech recognition error:", event.error);
+        recognition.onend = () => setIsListening(false);
     }, [isListening, inputMessage]);
 
     const reset = () => {
@@ -199,9 +200,9 @@ export default function InterviewPrep() {
     const renderView = () => {
         switch (currentView) {
             case 'interviewing': return <InterviewSessionView {...{ messages, isLoading, inputMessage, setInputMessage, isListening, handleListen, sendAnswer, endInterviewAndGetFeedback, jobTitle }} />;
-            case 'feedback': return <InterviewFeedbackView {...{ feedback, isLoading, reset }} />;
+            case 'feedback': return <InterviewFeedbackView {...{ feedback, isLoading, reset, jobTitle }} />;
             case 'setup':
-            default: return <InterviewSetupView {...{ jobTitle, setJobTitle, startInterview }} />;
+            default: return <InterviewSetupView {...{ jobTitle, setJobTitle, startInterview, voices, selectedVoice, setSelectedVoice }} />;
         }
     };
 
@@ -217,7 +218,7 @@ export default function InterviewPrep() {
 
 // --- Child Components for each View ---
 
-function InterviewSetupView({ jobTitle, setJobTitle, startInterview }) {
+function InterviewSetupView({ jobTitle, setJobTitle, startInterview, voices, selectedVoice, setSelectedVoice }) {
     return (
         <div className="flex flex-col h-full w-full">
             <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center gap-4">
@@ -229,17 +230,34 @@ function InterviewSetupView({ jobTitle, setJobTitle, startInterview }) {
                     <h2 className="text-3xl font-bold text-white">What role are you interviewing for?</h2>
                     <p className="text-gray-400 mt-2 mb-6">Include the company for more specific questions (e.g., "Software Engineer at Google").</p>
                     <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} onKeyPress={(e) => e.key === "Enter" && startInterview()} placeholder="Enter a job title..." className="w-full text-center text-lg p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500"/>
-                    <button onClick={startInterview} disabled={!jobTitle.trim()} className="mt-4 w-full p-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:bg-gray-600">Start Interview Simulation</button>
+                    
+                    <div className="mt-4">
+                        <label htmlFor="voice-select" className="text-sm font-medium text-gray-400 flex items-center justify-center gap-2"><Settings size={16}/> Interviewer Voice</label>
+                        <select
+                            id="voice-select"
+                            value={selectedVoice ? selectedVoice.name : ''}
+                            onChange={(e) => {
+                                const voice = voices.find(v => v.name === e.target.value);
+                                setSelectedVoice(voice);
+                            }}
+                            className="w-full mt-2 p-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                        >
+                            {voices.map(voice => (
+                                <option key={voice.name} value={voice.name}>
+                                    {voice.name} ({voice.lang})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <button onClick={startInterview} disabled={!jobTitle.trim()} className="mt-6 w-full p-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:bg-gray-600">Start Interview Simulation</button>
                 </div>
             </div>
         </div>
     );
 }
 
-function InterviewSessionView({ messages, isLoading, inputMessage, setInputMessage, isListening, handleListen, sendAnswer, endInterviewAndGetFeedback, jobTitle }) {
-    const messagesEndRef = useRef(null);
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
+function InterviewSessionView({ inputMessage, setInputMessage, isListening, handleListen, sendAnswer, endInterviewAndGetFeedback, jobTitle, isLoading }) {
     return (
         <div className="flex flex-col h-full w-full">
             <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center justify-between">
@@ -250,8 +268,8 @@ function InterviewSessionView({ messages, isLoading, inputMessage, setInputMessa
                 <button onClick={endInterviewAndGetFeedback} disabled={isLoading} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg disabled:bg-gray-600 flex-shrink-0">End & Get Feedback</button>
             </div>
             <div className="flex-1 p-4 pt-6 sm:p-6 overflow-y-auto flex flex-col items-center justify-center">
-                <div className="relative w-60 h-60 animate-pulse-slow">
-                    <img src={interviewerAvatar} alt="AI Interviewer" className="w-full h-full object-cover rounded-full" />
+                <div className="relative w-64 h-64">
+                    <img src={interviewerAvatar} alt="AI Interviewer" className="w-full h-full object-contain" />
                 </div>
                  {isLoading && (
                     <div className="mt-8 text-center flex items-center justify-center gap-2 text-purple-300">
@@ -271,7 +289,7 @@ function InterviewSessionView({ messages, isLoading, inputMessage, setInputMessa
     );
 }
 
-function InterviewFeedbackView({ feedback, isLoading, reset }) {
+function InterviewFeedbackView({ feedback, isLoading, reset, jobTitle }) {
     if (isLoading || !feedback) {
         return <div className="flex flex-col h-full w-full items-center justify-center"><div className="p-4 sm:p-6 w-full"><div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0"><Award className="w-6 h-6 text-white" /></div></div><div className="flex-1 flex flex-col items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-purple-400"/> <p className="mt-4 text-gray-400">Generating your detailed feedback report...</p></div></div>;
     }
@@ -279,13 +297,13 @@ function InterviewFeedbackView({ feedback, isLoading, reset }) {
         return <div className="flex flex-col h-full w-full items-center justify-center text-center p-4"><p className="text-red-400">{feedback.error}</p><button onClick={reset} className="mt-4 px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg">Try Another Interview</button></div>
     }
 
-    const ScoreCircle = ({ score, label }) => (
-        <div className="flex flex-col items-center text-center">
+    const ScoreCircle = ({ score, label, color }) => (
+        <div className="flex flex-col items-center text-center space-y-2">
             <div className="relative w-24 h-24">
-                <svg className="w-full h-full" viewBox="0 0 36 36" transform="rotate(-90 18 18)"><path className="text-gray-700" strokeWidth="3" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /><path className="text-purple-400" strokeWidth="3" fill="none" stroke="currentColor" strokeDasharray={`${score}, 100`} strokeLinecap="round" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /></svg>
+                <svg className="w-full h-full" viewBox="0 0 36 36" transform="rotate(-90 18 18)"><path className="text-gray-700/50" strokeWidth="2" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /><path className={color} strokeWidth="2.5" fill="none" stroke="currentColor" strokeDasharray={`${score}, 100`} strokeLinecap="round" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /></svg>
                 <div className="absolute inset-0 flex items-center justify-center"><span className="text-2xl font-bold text-white">{score}</span></div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-gray-300 w-24">{label}</p>
+            <p className="text-xs font-semibold text-gray-300 w-24">{label}</p>
         </div>
     );
 
@@ -293,30 +311,35 @@ function InterviewFeedbackView({ feedback, isLoading, reset }) {
         <div className="flex flex-col h-full w-full">
             <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center gap-4">
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0"><Award className="w-6 h-6 text-white" /></div>
-                <div><h1 className="text-2xl font-bold text-white">Interview Feedback Report</h1><p className="text-gray-400">Here's your performance breakdown</p></div>
+                <div><h1 className="text-2xl font-bold text-white">Interview Feedback Report</h1><p className="text-gray-400">Performance for: <span className="font-semibold text-purple-300">{jobTitle}</span></p></div>
             </div>
-            <div className="flex-1 p-6 overflow-y-auto space-y-6">
-                <div className="bg-white/5 p-6 rounded-lg flex flex-col sm:flex-row justify-around items-center gap-6">
-                    <ScoreCircle score={feedback.clarity_confidence_score} label="Clarity & Confidence" />
-                    <ScoreCircle score={feedback.star_method_score} label="STAR Method" />
-                    <ScoreCircle score={feedback.keyword_score} label="Keyword Usage" />
-                </div>
-                <div className="bg-white/5 p-6 rounded-lg">
-                    <h3 className="font-bold text-lg text-white">Overall Feedback</h3>
-                    <p className="mt-2 text-gray-300">{feedback.overall_feedback}</p>
-                </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white/5 p-6 rounded-lg">
-                        <h3 className="font-bold text-lg text-green-400 flex items-center gap-2"><Star />Strengths</h3>
-                        <ul className="mt-4 space-y-2 list-disc list-inside text-gray-300">{feedback.strengths.map((item, i) => <li key={i}>{item}</li>)}</ul>
+            <div className="flex-1 p-6 overflow-y-auto space-y-8">
+                <div className="bg-white/5 p-6 rounded-2xl">
+                    <h3 className="font-bold text-xl text-white flex items-center gap-2 mb-4"><BarChart className="w-6 h-6 text-purple-300"/> Performance Scores</h3>
+                    <div className="flex flex-col md:flex-row justify-around items-center gap-6">
+                        <ScoreCircle score={feedback.clarity_confidence_score} label="Clarity & Confidence" color="text-purple-400" />
+                        <ScoreCircle score={feedback.star_method_score} label="STAR Method" color="text-emerald-400"/>
+                        <ScoreCircle score={feedback.keyword_score} label="Keyword Usage" color="text-blue-400"/>
                     </div>
-                    <div className="bg-white/5 p-6 rounded-lg">
-                        <h3 className="font-bold text-lg text-orange-400 flex items-center gap-2"><ThumbsDown />Areas for Improvement</h3>
-                        <ul className="mt-4 space-y-2 list-disc list-inside text-gray-300">{feedback.areas_for_improvement.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                </div>
+
+                <div className="bg-white/5 p-6 rounded-2xl">
+                    <h3 className="font-bold text-xl text-white flex items-center gap-2"><Briefcase className="w-6 h-6 text-purple-300"/> Overall Feedback</h3>
+                    <p className="mt-4 text-gray-300 leading-relaxed">{feedback.overall_feedback}</p>
+                </div>
+
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 p-6 rounded-2xl">
+                        <h3 className="font-bold text-lg text-emerald-300 flex items-center gap-2"><Star />Strengths</h3>
+                        <ul className="mt-4 space-y-3 list-disc list-inside text-gray-300">{feedback.strengths.map((item, i) => <li key={i}>{item}</li>)}</ul>
+                    </div>
+                    <div className="bg-gradient-to-br from-orange-500/10 to-transparent border border-orange-500/20 p-6 rounded-2xl">
+                        <h3 className="font-bold text-lg text-orange-300 flex items-center gap-2"><ThumbsDown />Areas for Improvement</h3>
+                        <ul className="mt-4 space-y-3 list-disc list-inside text-gray-300">{feedback.areas_for_improvement.map((item, i) => <li key={i}>{item}</li>)}</ul>
                     </div>
                 </div>
                  <div className="text-center pt-4">
-                    <button onClick={reset} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg">Try Another Interview</button>
+                    <button onClick={reset} className="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg text-lg">Try Another Interview</button>
                 </div>
             </div>
         </div>
