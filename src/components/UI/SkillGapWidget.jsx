@@ -1,3 +1,5 @@
+// src/components/UI/SkillGapWidget.jsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWithRetry, getApiKey } from '../../utils/api';
@@ -9,7 +11,6 @@ export default function SkillGapWidget({ profile, roadmap }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // We need both the profile with skills and a roadmap to analyze gaps.
     if (!profile?.skills || !roadmap?.milestones) {
       setIsLoading(false);
       return;
@@ -18,10 +19,7 @@ export default function SkillGapWidget({ profile, roadmap }) {
     const analyzeGaps = async () => {
       try {
         const userSkills = profile.skills || [];
-        // Flatten the skills from all milestones into a single array
         const requiredSkills = roadmap.milestones.flatMap(m => m.skills_gained);
-        
-        // Remove duplicates to create a clean list for the AI
         const uniqueRequiredSkills = [...new Set(requiredSkills)];
 
         if (uniqueRequiredSkills.length === 0) {
@@ -29,7 +27,17 @@ export default function SkillGapWidget({ profile, roadmap }) {
             return;
         }
 
-        const prompt = `Given a user's current skills: [${userSkills.join(', ')}] and the skills required for their career goal of '${roadmap.career_goal}': [${uniqueRequiredSkills.join(', ')}], identify the top 5 most important skills the user is missing. If there are no missing skills, return an empty array for "skill_gaps". Return ONLY a valid JSON object with the structure: { "skill_gaps": ["string"] }`;
+        const prompt = `
+          Analyze the user's skills for their goal of '${roadmap.career_goal}'.
+
+          - User's skills: [${userSkills.join(', ')}]
+          - Required skills: [${uniqueRequiredSkills.join(', ')}]
+
+          Identify the top 5 most important skills the user should focus on. This should be a mix of:
+          1.  **Missing Skills**: Skills required for the role that the user doesn't have.
+          2.  **Skills to Improve**: Skills the user has, but could be improved for this specific career goal (label them like "Advanced JavaScript" or "React (State Management)").
+
+          Return ONLY a valid JSON object with the structure: { "skill_gaps": ["string"] }`;
 
         const apiKey = getApiKey();
         const response = await fetchWithRetry(
@@ -53,7 +61,6 @@ export default function SkillGapWidget({ profile, roadmap }) {
         setSkillGaps(result.skill_gaps || []);
       } catch (error) {
         console.error("Error analyzing skill gaps:", error);
-        // In case of an error, we'll just have an empty array so the component hides itself.
         setSkillGaps([]);
       } finally {
         setIsLoading(false);
@@ -64,7 +71,6 @@ export default function SkillGapWidget({ profile, roadmap }) {
   }, [profile, roadmap]);
 
   const handleSkillClick = (skill) => {
-    // Navigate to the learning hub and pre-fill the search query
     navigate(`/learning-hub?search=${encodeURIComponent(skill)}`);
   };
 
@@ -77,7 +83,6 @@ export default function SkillGapWidget({ profile, roadmap }) {
     );
   }
 
-  // If there are no gaps, don't render the component. This keeps the UI clean.
   if (skillGaps.length === 0) {
     return null; 
   }

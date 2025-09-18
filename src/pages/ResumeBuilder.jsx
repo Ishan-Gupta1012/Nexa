@@ -1,3 +1,5 @@
+// src/pages/ResumeBuilder.jsx
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
@@ -48,20 +50,35 @@ export default function ResumeBuilder() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+
         setResumeData((prev) => ({
           ...prev,
           personal_info: { 
-            ...prev.personal_info,
-            full_name: user.user_metadata?.full_name || "",
+            full_name: profileData?.full_name || user.user_metadata?.full_name || "",
             email: user.email || "",
+            phone: profileData?.phone || "",
+            location: profileData?.location || "",
+            title: profileData?.current_role || "",
           },
+          skills: profileData?.skills || [],
+          certifications: (profileData?.certifications || []).map(cert => ({
+              id: Date.now() + Math.random(),
+              name: cert,
+              issuer: '',
+              date: ''
+          })),
         }));
       }
     };
-    fetchUser();
+    fetchUserAndProfile();
   }, []);
 
   const handleNestedChange = (e) =>
@@ -352,4 +369,4 @@ export default function ResumeBuilder() {
       </div>
     </div>
   );
-} 
+}

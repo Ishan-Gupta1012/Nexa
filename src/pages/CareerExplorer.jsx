@@ -1,3 +1,5 @@
+// src/pages/CareerExplorer.jsx
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 import { fetchWithRetry, getApiKey } from '../utils/api';
@@ -48,16 +50,26 @@ export default function CareerExplorer() {
     setIsLoading(true);
     setStep('generating');
     try {
-      const context = profile ? `The user's current role is "${profile.current_role}" and their skills include: ${profile.skills?.join(', ')}.` : "The user has not provided profile information.";
-      const prompt = `You are an expert career counselor. A user wants to become a "${jobTitle}" in the "${selectedField.name}" field. ${context}
+      const userSkills = profile?.skills?.join(', ') || 'No skills listed';
+      const prompt = `
+        You are an expert career counselor creating a personalized career roadmap.
+        The user wants to become a "${jobTitle}" in the "${selectedField.name}" field.
 
-      Create a detailed career roadmap with a realistic timeline and 5-6 milestones. For EACH milestone, provide:
-      1. A "title".
-      2. A "description" of what to achieve.
-      3. An array of "skills_gained".
-      4. An array of 2-3 "suggested_resources". Each resource MUST be an object with "title", "type" (Course, Video, Article, Book), "provider" (e.g., Coursera, freeCodeCamp), and a real, valid "url".
+        USER PROFILE:
+        - Current Role: ${profile?.current_role || 'Not specified'}
+        - Existing Skills: ${userSkills}
 
-      Return ONLY a valid JSON object with the structure: { "career_goal": "string", "timeline_months": number, "milestones": [ { "title": "string", "description": "string", "skills_gained": ["string"], "suggested_resources": [ { "title": "string", "type": "string", "provider": "string", "url": "string" } ] } ] }`;
+        INSTRUCTIONS:
+        1.  Analyze the user's existing skills. If they have relevant skills, the roadmap should focus on ADVANCED topics and building on their foundation.
+        2.  If they are missing foundational skills, the roadmap should start with the basics.
+        3.  Create a detailed career roadmap with a realistic timeline and 5-6 milestones.
+        4.  For EACH milestone, provide:
+            - A "title".
+            - A "description" of what to achieve.
+            - An array of "skills_gained". For existing skills, suggest how to advance them (e.g., "Advanced React (State Management)").
+            - An array of 2-3 "suggested_resources". Each resource MUST be an object with "title", "type" (Course, Video, Article, Book), "provider" (e.g., Coursera, freeCodeCamp), and a real, valid "url".
+
+        Return ONLY a valid JSON object with the structure: { "career_goal": "string", "timeline_months": number, "milestones": [ { "title": "string", "description": "string", "skills_gained": ["string"], "suggested_resources": [ { "title": "string", "type": "string", "provider": "string", "url": "string" } ] } ] }`;
 
       const apiKey = getApiKey();
       const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {

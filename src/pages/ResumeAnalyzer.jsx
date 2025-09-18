@@ -1,3 +1,5 @@
+// src/pages/ResumeAnalyzer.jsx
+
 import React, { useState, useRef, useEffect } from "react";
 import { supabase } from "../supabaseClient.js";
 import { fetchWithRetry, getApiKey } from "../utils/api.js";
@@ -9,17 +11,27 @@ import {
   Lightbulb,
   CheckCircle,
   AlertTriangle,
-  ClipboardPaste, // New Icon
+  ClipboardPaste,
 } from "lucide-react";
 
 export default function ResumeAnalyzer() {
   const [file, setFile] = useState(null);
-  const [jobDescription, setJobDescription] = useState(""); // --- NEW STATE ---
+  const [jobDescription, setJobDescription] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [analysis, setAnalysis] = useState(null);
+  const [profile, setProfile] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
+    const fetchProfile = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const { data } = await supabase.from("profiles").select("skills").eq("id", user.id).single();
+            setProfile(data);
+        }
+    };
+    fetchProfile();
+    
     if (window.pdfjsLib) {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
     }
@@ -36,7 +48,7 @@ export default function ResumeAnalyzer() {
 
   const analyzeResume = async () => {
     if (!file) return alert("Please upload a resume first.");
-    if (!jobDescription.trim()) return alert("Please paste a job description."); // --- NEW CHECK ---
+    if (!jobDescription.trim()) return alert("Please paste a job description.");
     setIsProcessing(true);
     setAnalysis(null);
 
@@ -54,8 +66,16 @@ export default function ResumeAnalyzer() {
             textContent += text.items.map((s) => s.str).join(" \n");
           }
 
-          // --- MODIFIED PROMPT ---
-          const prompt = `You are an expert HR tech analyst. Analyze the following resume text specifically for the provided job description. Provide a 'Job Match Score' from 1-100. Also, provide a 'Missing Keywords' array with critical terms from the job description that are not in the resume, and an 'Improvement Suggestions' array with 3 actionable pieces of advice on how to better tailor the resume for this role. Return ONLY a valid JSON object with the structure: { "job_match_score": number, "missing_keywords": ["string"], "improvement_suggestions": ["string"] }`;
+          const userSkills = profile?.skills?.join(', ') || 'Not specified';
+          const prompt = `You are an expert HR tech analyst. Analyze the provided resume text against the job description, considering the user's listed skills from their profile.
+
+            -   **Job Description**: """${jobDescription}"""
+            -   **Resume Text**: """${textContent}"""
+            -   **User's Profile Skills**: ${userSkills}
+
+            Provide a 'Job Match Score' from 1-100. Also, provide a 'Missing Keywords' array with critical terms from the job description that are not in the resume, and an 'Improvement Suggestions' array with 3 actionable pieces of advice on how to better tailor the resume for this role, taking into account their existing skills.
+
+            Return ONLY a valid JSON object with the structure: { "job_match_score": number, "missing_keywords": ["string"], "improvement_suggestions": ["string"] }`;
 
           const apiKey = getApiKey();
           const response = await fetchWithRetry(
@@ -64,14 +84,7 @@ export default function ResumeAnalyzer() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                contents: [
-                  {
-                    parts: [
-                      // --- NEW STRUCTURE WITH JOB DESCRIPTION ---
-                      { text: `JOB DESCRIPTION: """${jobDescription}""" RESUME TEXT: """${textContent}""" ${prompt}` },
-                    ],
-                  },
-                ],
+                contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { responseMimeType: "application/json" },
               }),
             }
@@ -102,7 +115,6 @@ export default function ResumeAnalyzer() {
     setJobDescription("");
   };
 
-  // --- MODIFIED ANALYSIS RESULTS COMPONENT ---
   const AnalysisResults = () => (
     <div className="space-y-8">
       <div className="text-center p-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg shadow-lg">
@@ -153,7 +165,6 @@ export default function ResumeAnalyzer() {
     </div>
   );
   
-  // --- MODIFIED UPLOAD FORM ---
   const UploadForm = () => (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-xl space-y-6">
       <div>
