@@ -1,9 +1,9 @@
 // src/pages/CareerExplorer.jsx
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient';
+import React, { useState } from 'react';
+import { useOutletContext } from "react-router-dom"; // Import useOutletContext
 import { fetchWithRetry, getApiKey } from '../utils/api';
-import { Map, Loader2, Sparkles, BookOpen, BrainCircuit, HeartPulse, Palette, Briefcase, Atom, ArrowLeft, CheckCircle, Target, TrendingUp, Youtube, Globe, FileText } from 'lucide-react';
+import { Map, Loader2, Sparkles, BookOpen, BrainCircuit, HeartPulse, Palette, Briefcase, Atom, ArrowLeft, Target, TrendingUp, Youtube, Globe, FileText } from 'lucide-react';
 
 const careerFields = [
   { name: 'Technology', icon: BrainCircuit, color: 'text-cyan-400' },
@@ -22,23 +22,14 @@ const resourceIcons = {
 };
 
 export default function CareerExplorer() {
-  const [step, setStep] = useState('fieldSelection'); // fieldSelection, roleInput, generating, roadmapDisplay
+  const [step, setStep] = useState('fieldSelection');
   const [selectedField, setSelectedField] = useState(null);
   const [jobTitle, setJobTitle] = useState('');
   const [roadmap, setRoadmap] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
-        setProfile(data);
-      }
-    };
-    fetchProfile();
-  }, []);
+  
+  // Get profile from Layout context
+  const { profile } = useOutletContext();
 
   const handleFieldSelect = (field) => {
     setSelectedField(field);

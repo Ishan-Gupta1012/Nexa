@@ -21,9 +21,10 @@ const initialResumeState = {
 
 const sections = ["Personal", "Summary", "Experience", "Education", "Skills", "Projects", "Finalize"];
 
-const FormInput = ({ id, placeholder, value, onChange }) => (
+const FormInput = ({ id, placeholder, value, onChange, type = "text" }) => (
     <input 
         id={id} 
+        type={type}
         placeholder={placeholder} 
         value={value} 
         onChange={onChange}
@@ -219,8 +220,8 @@ export default function ResumeBuilder() {
                   <FormInput id="title" placeholder="Job Title" value={exp.title} onChange={(e) => handleItemChange(i, "experience", e)} />
                   <FormInput id="company" placeholder="Company" value={exp.company} onChange={(e) => handleItemChange(i, "experience", e)} />
                   <div className="grid grid-cols-2 gap-3">
-                    <FormInput id="start_date" placeholder="Start Date (e.g., Jan 2020)" value={exp.start_date} onChange={(e) => handleItemChange(i, "experience", e)} />
-                    <FormInput id="end_date" placeholder="End Date (e.g., Present)" value={exp.end_date} onChange={(e) => handleItemChange(i, "experience", e)} />
+                    <FormInput id="start_date" type="date" placeholder="Start Date" value={exp.start_date} onChange={(e) => handleItemChange(i, "experience", e)} />
+                    <FormInput id="end_date" type="date" placeholder="End Date" value={exp.end_date} onChange={(e) => handleItemChange(i, "experience", e)} />
                   </div>
                   <div>
                     <FormTextarea 
@@ -266,7 +267,7 @@ export default function ResumeBuilder() {
                   <FormInput id="degree" placeholder="Degree (e.g., Bachelor of Science)" value={edu.degree} onChange={(e) => handleItemChange(i, "education", e)} />
                   <FormInput id="field" placeholder="Field of Study (e.g., Computer Science)" value={edu.field} onChange={(e) => handleItemChange(i, "education", e)} />
                   <FormInput id="university" placeholder="University Name" value={edu.university} onChange={(e) => handleItemChange(i, "education", e)} />
-                  <FormInput id="graduation_date" placeholder="Graduation Date (e.g., May 2024)" value={edu.graduation_date} onChange={(e) => handleItemChange(i, "education", e)} />
+                  <FormInput id="graduation_date" type="date" placeholder="Graduation Date" value={edu.graduation_date} onChange={(e) => handleItemChange(i, "education", e)} />
                 </div>
               ))}
               <button onClick={() => addItem("education")} className="text-sm font-semibold text-emerald-400 hover:text-emerald-300">

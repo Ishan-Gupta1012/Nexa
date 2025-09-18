@@ -1,10 +1,9 @@
 // src/pages/Dashboard.jsx
 
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, Suspense, lazy } from "react";
+import { Link, useOutletContext } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
 import Footer from "../components/UI/Footer.jsx";
-import Layout from "../components/layout.jsx"
 import { fetchWithRetry, getApiKey } from "../utils/api.js";
 import {
   Sparkles,
@@ -20,113 +19,145 @@ import {
 import nexaGenLogo from "../assets/logo.png";
 import StatCard from "../components/UI/StatCard.jsx";
 import SkillGapWidget from "../components/UI/SkillGapWidget.jsx";
-import TrendingJobs from "../components/UI/TrendingJobs.jsx";
+
+const TrendingJobs = lazy(() => import("../components/UI/TrendingJobs.jsx"));
+
+// --- Icon Map for Safe Caching ---
+const iconMap = {
+  FileText: FileText,
+  Map: Map,
+  Brain: Brain,
+};
+
+// --- Caching Logic ---
+const CACHE_KEY = 'dashboard_data';
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+const getCachedData = () => {
+  try {
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    if (!cached) return null;
+
+    const { data, timestamp } = JSON.parse(cached);
+    if (Date.now() - timestamp > CACHE_DURATION_MS) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error("Failed to read from cache:", error);
+    return null;
+  }
+};
+
+const setCachedData = (data) => {
+  try {
+    const cachePayload = {
+      data,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify(cachePayload));
+  } catch (error) {
+    console.error("Failed to write to cache:", error);
+  }
+};
+// --- End Caching Logic ---
+
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [latestRoadmap, setLatestRoadmap] = useState(null);
-  const [stats, setStats] = useState({
-    resumes: 0,
-    roadmaps: 0,
-    interviews: 0,
-    certifications: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const { user, profile } = useOutletContext();
+  const [dataLoading, setDataLoading] = useState(true);
+
+  const [latestRoadmap, setLatestRoadmap] = useState(() => getCachedData()?.latestRoadmap || null);
+  const [stats, setStats] = useState(() => getCachedData()?.stats || { resumes: 0, roadmaps: 0, interviews: 0, certifications: 0 });
   const [showProfileReminder, setShowProfileReminder] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const [aiSuggestion, setAiSuggestion] = useState(() => getCachedData()?.aiSuggestion || null);
+  const [recentActivity, setRecentActivity] = useState(() => getCachedData()?.recentActivity || []);
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      const cachedData = getCachedData();
+      if (cachedData) {
+        setDataLoading(false);
+      } else {
+        setDataLoading(true);
+      }
 
       if (user) {
-        const [profileRes, resumeRes, roadmapRes, interviewsRes, latestRoadmapRes] =
-          await Promise.all([
-            supabase.from("profiles").select("certifications, skills, career_goals, current_role").eq("id", user.id).single(),
+        if (!profile || !profile.full_name) {
+          setShowProfileReminder(true);
+        }
+
+        const [
+          resumeRes, 
+          roadmapRes, 
+          interviewsRes, 
+          latestRoadmapRes,
+          recentResumes, 
+          recentRoadmaps, 
+          recentInterviews
+        ] = await Promise.all([
             supabase.from("resumes").select("*", { count: "exact", head: true }).eq("user_id", user.id),
             supabase.from("career_roadmaps").select("*", { count: "exact", head: true }).eq("user_id", user.id),
             supabase.from("interview_sessions").select("*", { count: "exact", head: true }).eq("user_id", user.id),
             supabase.from("career_roadmaps").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1),
-          ]);
+            supabase.from("resumes").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+            supabase.from("career_roadmaps").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+            supabase.from("interview_sessions").select("job_title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+        ]);
+        
+        const newLatestRoadmap = latestRoadmapRes.data?.[0] || null;
+        setLatestRoadmap(newLatestRoadmap);
 
-        const { data: profileData, error: profileError } = profileRes;
-        if (!profileData && !profileError) {
-          setShowProfileReminder(true);
-        } else if (profileData) {
-          setProfile(profileData);
-        }
-
-        if (latestRoadmapRes.data && latestRoadmapRes.data.length > 0) {
-            setLatestRoadmap(latestRoadmapRes.data[0]);
-        }
-
-        setStats({
+        const newStats = {
           resumes: resumeRes.count || 0,
           roadmaps: roadmapRes.count || 0,
           interviews: interviewsRes.count || 0,
-          certifications: profileData?.certifications?.length || 0,
-        });
+          certifications: profile?.certifications?.length || 0,
+        };
+        setStats(newStats);
 
-        const [recentResumes, recentRoadmaps, recentInterviews] = await Promise.all([
-          supabase.from("resumes").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
-          supabase.from("career_roadmaps").select("title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
-          supabase.from("interview_sessions").select("job_title, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
-        ]);
-        
         const activities = [];
-        if (recentResumes.data) {
-          recentResumes.data.forEach(item => activities.push({
-            type: "Resume created",
-            title: item.title,
-            date: item.created_at,
-            link: "/resume-builder",
-            icon: FileText
-          }));
-        }
-        if (recentRoadmaps.data) {
-          recentRoadmaps.data.forEach(item => activities.push({
-            type: "Career roadmap generated",
-            title: item.title,
-            date: item.created_at,
-            link: "/career-explorer",
-            icon: Map
-          }));
-        }
-        if (recentInterviews.data) {
-          recentInterviews.data.forEach(item => activities.push({
-            type: "Interview practiced",
-            title: item.job_title,
-            date: item.created_at,
-            link: "/interview-prep",
-            icon: Brain
-          }));
-        }
+        // **FIX**: Store icon name as a string
+        if (recentResumes.data) activities.push(...recentResumes.data.map(i => ({ type: "Resume created", title: i.title, date: i.created_at, link: "/resume-builder", icon: 'FileText' })));
+        if (recentRoadmaps.data) activities.push(...recentRoadmaps.data.map(i => ({ type: "Roadmap generated", title: i.title, date: i.created_at, link: "/career-explorer", icon: 'Map' })));
+        if (recentInterviews.data) activities.push(...recentInterviews.data.map(i => ({ type: "Interview practiced", title: i.job_title, date: i.created_at, link: "/interview-prep", icon: 'Brain' })));
+        
+        const newRecentActivity = activities.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+        setRecentActivity(newRecentActivity);
 
-        activities.sort((a, b) => new Date(b.date) - new Date(a.date));
-        setRecentActivity(activities.slice(0, 5));
-
-        if (profileData && profileData.current_role && profileData.career_goals) {
-          const prompt = `Based on this user's profile (Role: ${profileData.current_role}, Goal: ${profileData.career_goals}), provide one single, short, and actionable suggestion for their next career step. Be encouraging.`;
+        let newAiSuggestion = null;
+        if (profile && profile.current_role && profile.career_goals) {
           try {
             const apiKey = getApiKey();
             const response = await fetchWithRetry(
               `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-              { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) }
+              { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: `Based on this user's profile (Role: ${profile.current_role}, Goal: ${profile.career_goals}), provide one single, short, and actionable suggestion for their next career step. Be encouraging.` }] }] }) }
             );
             if (response.ok) {
               const data = await response.json();
-              setAiSuggestion(data.candidates[0].content.parts[0].text.trim());
+              newAiSuggestion = data.candidates[0].content.parts[0].text.trim();
+              setAiSuggestion(newAiSuggestion);
             }
           } catch (e) { console.error("AI suggestion fetch failed:", e); }
         }
+
+        setCachedData({
+          latestRoadmap: newLatestRoadmap,
+          stats: newStats,
+          recentActivity: newRecentActivity,
+          aiSuggestion: newAiSuggestion,
+        });
+
+        if (!cachedData) {
+          setDataLoading(false);
+        }
+      } else {
+        setDataLoading(false);
       }
-      setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [user, profile]);
 
   const actionItems = [
     { title: "Resume Tools", link: "/resume-builder" },
@@ -141,7 +172,7 @@ export default function Dashboard() {
     { icon: "Award", label: "Certifications", value: stats.certifications, color: "pink" },
   ];
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <div className="p-8 flex justify-center min-h-screen items-center bg-slate-950">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
@@ -149,7 +180,7 @@ export default function Dashboard() {
     );
   }
 
-  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || "User";
+  const firstName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
   const gridBackgroundStyle = {
       backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px)',
       backgroundSize: '2rem 2rem',
@@ -220,20 +251,25 @@ export default function Dashboard() {
                 </h2>
                 {recentActivity.length > 0 ? (
                   <ul className="space-y-3">
-                    {recentActivity.map((activity, index) => (
-                      <li key={index} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
-                        <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                          <activity.icon className="w-5 h-5 text-purple-400" />
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-white">{activity.type}</p>
-                            <p className="text-xs text-gray-400">{activity.title}</p>
-                        </div>
-                        <p className="text-xs text-gray-500 flex-shrink-0">
-                          {new Date(activity.date).toLocaleDateString()}
-                        </p>
-                      </li>
-                    ))}
+                    {recentActivity.map((activity, index) => {
+                        // **FIX**: Look up the component from the map using the string name
+                        const Icon = iconMap[activity.icon];
+                        if (!Icon) return null; // Gracefully handle if icon name is invalid
+                        return (
+                          <li key={index} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
+                            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                              <Icon className="w-5 h-5 text-purple-400" />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm font-medium text-white">{activity.type}</p>
+                                <p className="text-xs text-gray-400">{activity.title}</p>
+                            </div>
+                            <p className="text-xs text-gray-500 flex-shrink-0">
+                              {new Date(activity.date).toLocaleDateString()}
+                            </p>
+                          </li>
+                        );
+                    })}
                   </ul>
                 ) : (
                   <p className="text-sm text-gray-500 text-center py-4">No recent activity found. Get started with our tools!</p>
@@ -241,7 +277,13 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <TrendingJobs profile={profile} />
+          <Suspense fallback={
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+            </div>
+          }>
+            <TrendingJobs profile={profile} />
+          </Suspense>
 
         </div>
       </div>

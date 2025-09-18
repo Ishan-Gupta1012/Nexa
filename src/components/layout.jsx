@@ -1,3 +1,5 @@
+// src/components/layout.jsx
+
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { Link, useLocation, useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
@@ -78,7 +80,7 @@ const DropdownMenuSeparator = () => (
 );
 
 const navigationItems = [
-  { title: "Home`", to: "/dashboard", icon: LayoutDashboard },
+  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { title: "Resume Builder", to: "/resume-builder", icon: FileText },
   { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
   { title: "Interview Prep", to: "/interview-prep", icon: Mic },
@@ -98,13 +100,15 @@ export default function Layout() {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        setIsLoading(true);
         const currentUser = session?.user;
         setUser(currentUser ?? null);
 
         if (currentUser) {
+          // Fetch the FULL profile data once here
           const { data: profileData } = await supabase
             .from("profiles")
-            .select("profile_picture_url")
+            .select("*")
             .eq("id", currentUser.id)
             .single();
           setProfile(profileData);
@@ -241,7 +245,8 @@ export default function Layout() {
       )}
       
       <main className="flex-1 overflow-y-auto relative" style={gridBackgroundStyle}>
-        <Outlet />
+        {/* Pass user and profile to all child routes */}
+        <Outlet context={{ user, profile }} />
         
         <button
           onClick={() => setIsChatOpen(!isChatOpen)}
