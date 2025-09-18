@@ -96,16 +96,20 @@ export default function Layout() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const initialLoad = useRef(true); // Ref to track the initial auth check
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        setIsLoading(true);
+        // Only show the main loader on the very first check
+        if (initialLoad.current) {
+          setIsLoading(true);
+        }
+
         const currentUser = session?.user;
         setUser(currentUser ?? null);
 
         if (currentUser) {
-          // Fetch the FULL profile data once here
           const { data: profileData } = await supabase
             .from("profiles")
             .select("*")
@@ -119,7 +123,13 @@ export default function Layout() {
         if (!currentUser && location.pathname !== "/signin") {
           navigate("/signin");
         }
-        setIsLoading(false);
+
+        // After the first check is complete, turn off the initial loader
+        // and prevent it from showing again on subsequent auth events (like tab focus).
+        if (initialLoad.current) {
+          setIsLoading(false);
+          initialLoad.current = false;
+        }
       }
     );
     return () => {
@@ -245,7 +255,6 @@ export default function Layout() {
       )}
       
       <main className="flex-1 overflow-y-auto relative" style={gridBackgroundStyle}>
-        {/* Pass user and profile to all child routes */}
         <Outlet context={{ user, profile }} />
         
         <button

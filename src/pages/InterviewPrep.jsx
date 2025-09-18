@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { fetchWithRetry, getApiKey } from "../utils/api";
-import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft, Settings, Briefcase, BarChart } from "lucide-react";
+import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft, Briefcase, BarChart } from "lucide-react";
 import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
 
 // Import the new local bot avatar GIF
@@ -25,31 +25,31 @@ export default function InterviewPrep() {
     const [inputMessage, setInputMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    const [voices, setVoices] = useState([]);
-    const [selectedVoice, setSelectedVoice] = useState(null);
+    const [interviewerVoice, setInterviewerVoice] = useState(null);
     const finalTranscriptRef = useRef('');
     const timerRef = useRef(null);
 
     useEffect(() => {
-        const loadVoices = () => {
+        const setInitialVoice = () => {
             const availableVoices = window.speechSynthesis.getVoices();
             if (availableVoices.length > 0) {
                 const englishVoices = availableVoices.filter(v => v.lang.startsWith('en'));
-                setVoices(englishVoices);
                 const defaultVoice = englishVoices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || englishVoices[0];
-                setSelectedVoice(defaultVoice);
+                setInterviewerVoice(defaultVoice);
             }
         };
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-        loadVoices();
+        
+        // This ensures the voices are loaded before we try to set the initial voice
+        setInitialVoice();
+        window.speechSynthesis.onvoiceschanged = setInitialVoice;
     }, []);
 
 
     const speak = (text) => {
-        if (!text || typeof window.speechSynthesis === 'undefined' || !selectedVoice) return;
+        if (!text || typeof window.speechSynthesis === 'undefined' || !interviewerVoice) return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text.replace(/_|\*/g, ''));
-        utterance.voice = selectedVoice;
+        utterance.voice = interviewerVoice;
         utterance.rate = 0.95;
         utterance.pitch = 1.0;
         window.speechSynthesis.speak(utterance);
@@ -62,7 +62,7 @@ export default function InterviewPrep() {
                 speak(lastMessage.content);
             }
         }
-    }, [messages, isLoading, currentView, selectedVoice]);
+    }, [messages, isLoading, currentView, interviewerVoice]);
 
     const startInterview = async () => {
         if (!jobTitle.trim()) return alert("Please enter a job title.");
@@ -202,7 +202,7 @@ export default function InterviewPrep() {
             case 'interviewing': return <InterviewSessionView {...{ messages, isLoading, inputMessage, setInputMessage, isListening, handleListen, sendAnswer, endInterviewAndGetFeedback, jobTitle }} />;
             case 'feedback': return <InterviewFeedbackView {...{ feedback, isLoading, reset, jobTitle }} />;
             case 'setup':
-            default: return <InterviewSetupView {...{ jobTitle, setJobTitle, startInterview, voices, selectedVoice, setSelectedVoice }} />;
+            default: return <InterviewSetupView {...{ jobTitle, setJobTitle, startInterview }} />;
         }
     };
 
@@ -218,7 +218,7 @@ export default function InterviewPrep() {
 
 // --- Child Components for each View ---
 
-function InterviewSetupView({ jobTitle, setJobTitle, startInterview, voices, selectedVoice, setSelectedVoice }) {
+function InterviewSetupView({ jobTitle, setJobTitle, startInterview }) {
     return (
         <div className="flex flex-col h-full w-full">
             <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center gap-4">
@@ -230,26 +230,6 @@ function InterviewSetupView({ jobTitle, setJobTitle, startInterview, voices, sel
                     <h2 className="text-3xl font-bold text-white">What role are you interviewing for?</h2>
                     <p className="text-gray-400 mt-2 mb-6">Include the company for more specific questions (e.g., "Software Engineer at Google").</p>
                     <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} onKeyPress={(e) => e.key === "Enter" && startInterview()} placeholder="Enter a job title..." className="w-full text-center text-lg p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500"/>
-                    
-                    <div className="mt-4">
-                        <label htmlFor="voice-select" className="text-sm font-medium text-gray-400 flex items-center justify-center gap-2"><Settings size={16}/> Interviewer Voice</label>
-                        <select
-                            id="voice-select"
-                            value={selectedVoice ? selectedVoice.name : ''}
-                            onChange={(e) => {
-                                const voice = voices.find(v => v.name === e.target.value);
-                                setSelectedVoice(voice);
-                            }}
-                            className="w-full mt-2 p-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                        >
-                            {voices.map(voice => (
-                                <option key={voice.name} value={voice.name}>
-                                    {voice.name} ({voice.lang})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
                     <button onClick={startInterview} disabled={!jobTitle.trim()} className="mt-6 w-full p-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:bg-gray-600">Start Interview Simulation</button>
                 </div>
             </div>
