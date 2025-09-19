@@ -11,7 +11,8 @@ import AboutUs from './pages/AboutUs.jsx';
 import ResumePreview from './pages/ResumePreview.jsx';
 import InterviewPrep from './pages/InterviewPrep.jsx';
 import Strategies from './pages/Strategies.jsx';
-import JobDetails from './pages/JobDetails.jsx'; // Import the new component
+import CareerCompass from './pages/CareerCompass.jsx';
+import JobDetails from './pages/JobDetails.jsx';
 
 export const routes = [
   { path: "/signin", element: <SignIn /> },
@@ -27,9 +28,11 @@ export const routes = [
       { path: "/resume-analyzer", element: <ResumeAnalyzer /> },
       { path: "/interview-prep", element: <InterviewPrep /> },
       { path: "/career-explorer", element: <CareerExplorer /> },
+      { path: "/career-compass", element: <CareerCompass /> },
       { path: "/strategies", element: <Strategies /> },
       { path: "/about-us", element: <AboutUs /> },
-      { path: "/job-details/:jobTitle", element: <JobDetails /> }, // Add the new route
+      { path: "/job-details/:jobTitle", element: <JobDetails /> },
     ],  
   },
 ];
+

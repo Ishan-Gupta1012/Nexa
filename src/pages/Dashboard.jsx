@@ -1,5 +1,3 @@
-// src/pages/Dashboard.jsx
-
 import React, { useState, useEffect, Suspense, lazy } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
@@ -39,13 +37,22 @@ const getCachedData = () => {
     if (!cached) return null;
 
     const { data, timestamp } = JSON.parse(cached);
+
     if (Date.now() - timestamp > CACHE_DURATION_MS) {
       sessionStorage.removeItem(CACHE_KEY);
       return null;
     }
+    
+    if (data.recentActivity && data.recentActivity.some(item => typeof item.icon !== 'string')) {
+        console.warn("Invalid cache format detected. Clearing cache.");
+        sessionStorage.removeItem(CACHE_KEY);
+        return null;
+    }
+
     return data;
   } catch (error) {
-    console.error("Failed to read from cache:", error);
+    console.error("Failed to read or validate cache. Clearing it.", error);
+    sessionStorage.removeItem(CACHE_KEY);
     return null;
   }
 };
@@ -68,21 +75,28 @@ export default function Dashboard() {
   const { user, profile } = useOutletContext();
   const [dataLoading, setDataLoading] = useState(true);
 
-  const [latestRoadmap, setLatestRoadmap] = useState(() => getCachedData()?.latestRoadmap || null);
-  const [stats, setStats] = useState(() => getCachedData()?.stats || { resumes: 0, roadmaps: 0, interviews: 0, certifications: 0 });
+  const [latestRoadmap, setLatestRoadmap] = useState(null);
+  const [stats, setStats] = useState({ resumes: 0, roadmaps: 0, interviews: 0, certifications: 0 });
   const [showProfileReminder, setShowProfileReminder] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState(() => getCachedData()?.aiSuggestion || null);
-  const [recentActivity, setRecentActivity] = useState(() => getCachedData()?.recentActivity || []);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
+      // **CRITICAL FIX**: First, try to load everything from cache.
       const cachedData = getCachedData();
       if (cachedData) {
+        setLatestRoadmap(cachedData.latestRoadmap);
+        setStats(cachedData.stats);
+        setRecentActivity(cachedData.recentActivity);
+        setAiSuggestion(cachedData.aiSuggestion);
         setDataLoading(false);
-      } else {
-        setDataLoading(true);
+        // Data is fresh enough, no need to re-fetch.
+        return; 
       }
 
+      // If no valid cache, then proceed to fetch from the network.
+      setDataLoading(true);
       if (user) {
         if (!profile || !profile.full_name) {
           setShowProfileReminder(true);
@@ -118,7 +132,6 @@ export default function Dashboard() {
         setStats(newStats);
 
         const activities = [];
-        // **FIX**: Store icon name as a string
         if (recentResumes.data) activities.push(...recentResumes.data.map(i => ({ type: "Resume created", title: i.title, date: i.created_at, link: "/resume-builder", icon: 'FileText' })));
         if (recentRoadmaps.data) activities.push(...recentRoadmaps.data.map(i => ({ type: "Roadmap generated", title: i.title, date: i.created_at, link: "/career-explorer", icon: 'Map' })));
         if (recentInterviews.data) activities.push(...recentInterviews.data.map(i => ({ type: "Interview practiced", title: i.job_title, date: i.created_at, link: "/interview-prep", icon: 'Brain' })));
@@ -148,15 +161,10 @@ export default function Dashboard() {
           recentActivity: newRecentActivity,
           aiSuggestion: newAiSuggestion,
         });
-
-        if (!cachedData) {
-          setDataLoading(false);
-        }
-      } else {
-        setDataLoading(false);
       }
+      setDataLoading(false);
     };
-    fetchData();
+    loadData();
   }, [user, profile]);
 
   const actionItems = [
@@ -252,9 +260,8 @@ export default function Dashboard() {
                 {recentActivity.length > 0 ? (
                   <ul className="space-y-3">
                     {recentActivity.map((activity, index) => {
-                        // **FIX**: Look up the component from the map using the string name
                         const Icon = iconMap[activity.icon];
-                        if (!Icon) return null; // Gracefully handle if icon name is invalid
+                        if (!Icon) return null;
                         return (
                           <li key={index} className="flex items-center gap-4 p-3 bg-white/5 rounded-lg">
                             <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">

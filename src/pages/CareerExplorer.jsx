@@ -1,5 +1,3 @@
-// src/pages/CareerExplorer.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from "react-router-dom";
 import { fetchWithRetry, getApiKey } from '../utils/api';
@@ -21,28 +19,41 @@ const resourceIcons = {
   default: <Globe className="w-4 h-4 text-gray-400" />,
 };
 
-const CACHE_KEY_ROADMAP = 'career_explorer_roadmap';
-const CACHE_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+// --- Improved Caching Logic ---
+const getCacheKeyForJob = (jobTitle) => `roadmap_progress_${jobTitle.trim().toLowerCase().replace(/\s+/g, '_')}`;
+const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
-const getCachedRoadmap = () => {
+const getCachedData = (jobTitle) => {
+  const cacheKey = getCacheKeyForJob(jobTitle);
   try {
-    const cached = sessionStorage.getItem(CACHE_KEY_ROADMAP);
+    const cached = sessionStorage.getItem(cacheKey);
     if (!cached) return null;
     const { data, timestamp } = JSON.parse(cached);
     if (Date.now() - timestamp > CACHE_DURATION_MS) {
-      sessionStorage.removeItem(CACHE_KEY_ROADMAP);
+      sessionStorage.removeItem(cacheKey);
       return null;
     }
+    // Convert arrays back to Sets
+    data.completedMilestones = new Set(data.completedMilestones);
+    data.completedResources = new Set(data.completedResources);
     return data;
   } catch (error) { return null; }
 };
 
-const setCachedRoadmap = (data) => {
+const setCachedData = (jobTitle, data) => {
+  const cacheKey = getCacheKeyForJob(jobTitle);
   try {
-    const cachePayload = { data, timestamp: Date.now() };
-    sessionStorage.setItem(CACHE_KEY_ROADMAP, JSON.stringify(cachePayload));
-  } catch (error) { console.error("Failed to write roadmap to cache:", error); }
+    // Convert Sets to arrays for JSON serialization
+    const serializableData = {
+        ...data,
+        completedMilestones: [...data.completedMilestones],
+        completedResources: [...data.completedResources],
+    };
+    const cachePayload = { data: serializableData, timestamp: Date.now() };
+    sessionStorage.setItem(cacheKey, JSON.stringify(cachePayload));
+  } catch (error) { console.error("Failed to write to cache:", error); }
 };
+// --- End Caching Logic ---
 
 export default function CareerExplorer() {
   const [step, setStep] = useState('fieldSelection');
@@ -61,15 +72,6 @@ export default function CareerExplorer() {
   const { profile } = useOutletContext();
 
   useEffect(() => {
-    const cachedRoadmap = getCachedRoadmap();
-    if (cachedRoadmap) {
-      setRoadmap(cachedRoadmap);
-      setJobTitle(cachedRoadmap.career_goal);
-      setStep('roadmapDisplay');
-    }
-  }, []);
-
-  useEffect(() => {
     if (roadmap && roadmap.milestones) {
         const totalMilestones = roadmap.milestones.length;
         if (totalMilestones > 0) {
@@ -81,7 +83,9 @@ export default function CareerExplorer() {
 
   const handleResourceComplete = (resourceQuery) => {
     if (completedResources.has(resourceQuery)) return;
-    setCompletedResources(prev => new Set(prev).add(resourceQuery));
+    const newSet = new Set(completedResources).add(resourceQuery);
+    setCompletedResources(newSet);
+    setCachedData(jobTitle, { roadmap, completedMilestones, completedResources: newSet });
     setCongratsMessage("Great job! One step closer to your goal.");
     setTimeout(() => setCongratsMessage(''), 3000);
   };
@@ -97,6 +101,7 @@ export default function CareerExplorer() {
         setTimeout(() => setCongratsMessage(''), 3000);
     }
     setCompletedMilestones(newSet);
+    setCachedData(jobTitle, { roadmap, completedMilestones: newSet, completedResources });
   };
 
   const handleFieldSelect = (field) => {
@@ -107,9 +112,11 @@ export default function CareerExplorer() {
   const generateRoadmap = async () => {
     if (!jobTitle.trim()) return;
 
-    const cachedRoadmap = getCachedRoadmap();
-    if (cachedRoadmap && cachedRoadmap.career_goal.toLowerCase() === jobTitle.toLowerCase()) {
-      setRoadmap(cachedRoadmap);
+    const cachedData = getCachedData(jobTitle);
+    if (cachedData) {
+      setRoadmap(cachedData.roadmap);
+      setCompletedMilestones(cachedData.completedMilestones);
+      setCompletedResources(cachedData.completedResources);
       setStep('roadmapDisplay');
       return;
     }
@@ -143,7 +150,7 @@ export default function CareerExplorer() {
       const data = await response.json();
       const result = JSON.parse(data.candidates[0].content.parts[0].text);
       setRoadmap(result);
-      setCachedRoadmap(result);
+      setCachedData(jobTitle, { roadmap: result, completedMilestones: new Set(), completedResources: new Set() });
       setStep('roadmapDisplay');
     } catch (error) {
       console.error("Roadmap generation error:", error);
@@ -188,7 +195,6 @@ export default function CareerExplorer() {
   };
   
   const reset = () => {
-      sessionStorage.removeItem(CACHE_KEY_ROADMAP);
       setStep('fieldSelection');
       setSelectedField(null);
       setJobTitle('');
@@ -310,7 +316,11 @@ export default function CareerExplorer() {
                                     target="_blank" 
                                     rel="noopener noreferrer" 
                                     key={res.search_query}
-                                    onClick={() => handleResourceComplete(res.search_query)}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        handleResourceComplete(res.search_query);
+                                        window.open(searchUrl, '_blank');
+                                    }}
                                     className={`group flex items-center gap-3 p-2 rounded-lg hover:bg-white/10 transition-all duration-300 ${completedResources.has(res.search_query) ? 'opacity-40 line-through' : ''}`}
                                 >
                                     <div className="flex-shrink-0">{resourceIcons[res.type] || resourceIcons.default}</div>
@@ -398,3 +408,4 @@ export default function CareerExplorer() {
     </div>
   );
 }
+

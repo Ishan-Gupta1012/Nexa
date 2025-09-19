@@ -1,5 +1,3 @@
-// src/components/layout.jsx
-
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { Link, useLocation, useNavigate, Outlet, NavLink } from "react-router-dom";
 import { supabase } from "../supabaseClient.js";
@@ -16,7 +14,8 @@ import {
   Loader2,
   Mic,
   Lightbulb,
-  X
+  X,
+  Compass
 } from "lucide-react";
 import nexaGenLogo from "../assets/logo.png";
 import BackgroundAnimation from "./UI/BackgroundAnimation.jsx";
@@ -79,14 +78,6 @@ const DropdownMenuSeparator = () => (
   <div className="border-t border-white/10 my-1" />
 );
 
-const navigationItems = [
-  { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
-  { title: "Resume Builder", to: "/resume-builder", icon: FileText },
-  { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
-  { title: "Interview Prep", to: "/interview-prep", icon: Mic },
-  { title: "Career Explorer", to: "/career-explorer", icon: Map },
-  { title: "Strategies", to: "/strategies", icon: Lightbulb },
-];
 
 export default function Layout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -96,12 +87,11 @@ export default function Layout() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const initialLoad = useRef(true); // Ref to track the initial auth check
+  const initialLoad = useRef(true);
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        // Only show the main loader on the very first check
         if (initialLoad.current) {
           setIsLoading(true);
         }
@@ -124,8 +114,6 @@ export default function Layout() {
           navigate("/signin");
         }
 
-        // After the first check is complete, turn off the initial loader
-        // and prevent it from showing again on subsequent auth events (like tab focus).
         if (initialLoad.current) {
           setIsLoading(false);
           initialLoad.current = false;
@@ -141,6 +129,19 @@ export default function Layout() {
     await supabase.auth.signOut();
     navigate("/signin");
   };
+
+  const isStudent = profile?.experience_level === 'entry';
+
+  const navigationItems = [
+    { title: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+    isStudent && { title: "Career Compass", to: "/career-compass", icon: Compass },
+    { title: "Resume Builder", to: "/resume-builder", icon: FileText },
+    { title: "Resume Analyzer", to: "/resume-analyzer", icon: Search },
+    { title: "Interview Prep", to: "/interview-prep", icon: Mic },
+    { title: "Career Explorer", to: "/career-explorer", icon: Map },
+    { title: "Strategies", to: "/strategies", icon: Lightbulb },
+  ].filter(Boolean);
+
 
   const gridBackgroundStyle = {
     backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px)',
@@ -270,3 +271,4 @@ export default function Layout() {
     </div>
   );
 }
+
