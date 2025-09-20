@@ -777,11 +777,6 @@ export default function Profile() {
             <p className="text-purple-200 text-sm mb-3">
               To access the **Career Compass** feature, please set your **Experience Level** to 'Entry'.
             </p>
-            <Link to="/career-compass">
-              <button className="bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-lg text-xs px-3 py-1.5">
-                Go to Career Compass
-              </button>
-            </Link>
           </div>
         </div>
       )}
