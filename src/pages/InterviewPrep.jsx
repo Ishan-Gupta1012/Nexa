@@ -2,8 +2,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { fetchWithRetry, getApiKey } from "../utils/api";
-import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft, Briefcase, BarChart } from "lucide-react";
+import { Mic, Send, Bot, User as UserIcon, Loader2, Award, Star, ThumbsDown, ArrowLeft, Settings, Briefcase, BarChart } from "lucide-react";
 import BackgroundAnimation from "../components/UI/BackgroundAnimation.jsx";
+import { mockInterviewFeedbackEmpty } from '../data/mockData.js'; // Import mock data
 
 // Import the new local bot avatar GIF
 import interviewerAvatar from '../assets/bot-avatar.png';
@@ -25,31 +26,31 @@ export default function InterviewPrep() {
     const [inputMessage, setInputMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    const [interviewerVoice, setInterviewerVoice] = useState(null);
+    const [voices, setVoices] = useState([]);
+    const [selectedVoice, setSelectedVoice] = useState(null);
     const finalTranscriptRef = useRef('');
     const timerRef = useRef(null);
 
     useEffect(() => {
-        const setInitialVoice = () => {
+        const loadVoices = () => {
             const availableVoices = window.speechSynthesis.getVoices();
             if (availableVoices.length > 0) {
                 const englishVoices = availableVoices.filter(v => v.lang.startsWith('en'));
+                setVoices(englishVoices);
                 const defaultVoice = englishVoices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || englishVoices[0];
-                setInterviewerVoice(defaultVoice);
+                setSelectedVoice(defaultVoice);
             }
         };
-        
-        // This ensures the voices are loaded before we try to set the initial voice
-        setInitialVoice();
-        window.speechSynthesis.onvoiceschanged = setInitialVoice;
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
     }, []);
 
 
     const speak = (text) => {
-        if (!text || typeof window.speechSynthesis === 'undefined' || !interviewerVoice) return;
+        if (!text || typeof window.speechSynthesis === 'undefined' || !selectedVoice) return;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text.replace(/_|\*/g, ''));
-        utterance.voice = interviewerVoice;
+        utterance.voice = selectedVoice;
         utterance.rate = 0.95;
         utterance.pitch = 1.0;
         window.speechSynthesis.speak(utterance);
@@ -62,7 +63,7 @@ export default function InterviewPrep() {
                 speak(lastMessage.content);
             }
         }
-    }, [messages, isLoading, currentView, interviewerVoice]);
+    }, [messages, isLoading, currentView, selectedVoice]);
 
     const startInterview = async () => {
         if (!jobTitle.trim()) return alert("Please enter a job title.");
@@ -145,6 +146,16 @@ export default function InterviewPrep() {
         setIsLoading(true);
         setCurrentView('feedback');
         if (timerRef.current) clearTimeout(timerRef.current);
+
+        // Check if the user has provided any responses
+        const hasUserResponses = transcript.some(item => item.speaker === 'USER');
+        
+        if (!hasUserResponses) {
+          setFeedback(mockInterviewFeedbackEmpty);
+          setIsLoading(false);
+          return;
+        }
+
         try {
             const transcriptText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n\n');
             const prompt = `You are an expert HR manager and interview coach. Analyze the interview transcript for a "${jobTitle}" position. Provide a detailed performance report. Return ONLY a valid JSON object: { "clarity_confidence_score": number(1-100), "star_method_score": number(1-100), "keyword_score": number(1-100), "overall_feedback": "string", "strengths": ["string"], "areas_for_improvement": ["string"] }`;
@@ -202,7 +213,7 @@ export default function InterviewPrep() {
             case 'interviewing': return <InterviewSessionView {...{ messages, isLoading, inputMessage, setInputMessage, isListening, handleListen, sendAnswer, endInterviewAndGetFeedback, jobTitle }} />;
             case 'feedback': return <InterviewFeedbackView {...{ feedback, isLoading, reset, jobTitle }} />;
             case 'setup':
-            default: return <InterviewSetupView {...{ jobTitle, setJobTitle, startInterview }} />;
+            default: return <InterviewSetupView {...{ jobTitle, setJobTitle, startInterview, voices, selectedVoice, setSelectedVoice }} />;
         }
     };
 
@@ -218,7 +229,7 @@ export default function InterviewPrep() {
 
 // --- Child Components for each View ---
 
-function InterviewSetupView({ jobTitle, setJobTitle, startInterview }) {
+function InterviewSetupView({ jobTitle, setJobTitle, startInterview, voices, selectedVoice, setSelectedVoice }) {
     return (
         <div className="flex flex-col h-full w-full">
             <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center gap-4">
@@ -230,6 +241,26 @@ function InterviewSetupView({ jobTitle, setJobTitle, startInterview }) {
                     <h2 className="text-3xl font-bold text-white">What role are you interviewing for?</h2>
                     <p className="text-gray-400 mt-2 mb-6">Include the company for more specific questions (e.g., "Software Engineer at Google").</p>
                     <input value={jobTitle} onChange={e => setJobTitle(e.target.value)} onKeyPress={(e) => e.key === "Enter" && startInterview()} placeholder="Enter a job title..." className="w-full text-center text-lg p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-purple-500"/>
+                    
+                    <div className="mt-4">
+                        <label htmlFor="voice-select" className="text-sm font-medium text-gray-400 flex items-center justify-center gap-2"><Settings size={16}/> Interviewer Voice</label>
+                        <select
+                            id="voice-select"
+                            value={selectedVoice ? selectedVoice.name : ''}
+                            onChange={(e) => {
+                                const voice = voices.find(v => v.name === e.target.value);
+                                setSelectedVoice(voice);
+                            }}
+                            className="w-full mt-2 p-2 bg-gray-800 border border-gray-700 rounded-lg text-white"
+                        >
+                            {voices.map(voice => (
+                                <option key={voice.name} value={voice.name}>
+                                    {voice.name} ({voice.lang})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     <button onClick={startInterview} disabled={!jobTitle.trim()} className="mt-6 w-full p-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg disabled:bg-gray-600">Start Interview Simulation</button>
                 </div>
             </div>
@@ -283,19 +314,20 @@ function InterviewFeedbackView({ feedback, isLoading, reset, jobTitle }) {
                 <svg className="w-full h-full" viewBox="0 0 36 36" transform="rotate(-90 18 18)"><path className="text-gray-700/50" strokeWidth="2" fill="none" stroke="currentColor" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /><path className={color} strokeWidth="2.5" fill="none" stroke="currentColor" strokeDasharray={`${score}, 100`} strokeLinecap="round" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" /></svg>
                 <div className="absolute inset-0 flex items-center justify-center"><span className="text-2xl font-bold text-white">{score}</span></div>
             </div>
-            <p className="text-xs font-semibold text-gray-300 w-24">{label}</p>
+            {/* Adjusted styling here */}
+            <p className="text-xs font-semibold text-gray-300 max-w-[120px]">{label}</p>
         </div>
     );
 
     return (
         <div className="flex flex-col h-full w-full">
-            <div className="p-4 sm:p-6 border-b border-purple-400/20 flex items-center gap-4">
+            <div className="p-4 sm:p-6 border-b border-purple-200/10 flex items-center gap-4">
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0"><Award className="w-6 h-6 text-white" /></div>
                 <div><h1 className="text-2xl font-bold text-white">Interview Feedback Report</h1><p className="text-gray-400">Performance for: <span className="font-semibold text-purple-300">{jobTitle}</span></p></div>
             </div>
             <div className="flex-1 p-6 overflow-y-auto space-y-8">
                 <div className="bg-white/5 p-6 rounded-2xl">
-                    <h3 className="font-bold text-xl text-white flex items-center gap-2 mb-4"><BarChart className="w-6 h-6 text-purple-300"/> Performance Scores</h3>
+                    <h3 className="font-bold text-xl text-white flex items-center gap-2"><BarChart className="w-6 h-6 text-purple-300"/> Performance Scores</h3>
                     <div className="flex flex-col md:flex-row justify-around items-center gap-6">
                         <ScoreCircle score={feedback.clarity_confidence_score} label="Clarity & Confidence" color="text-purple-400" />
                         <ScoreCircle score={feedback.star_method_score} label="STAR Method" color="text-emerald-400"/>

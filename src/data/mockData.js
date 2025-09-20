@@ -12,7 +12,7 @@ export const mockProfile = {
     certifications: ["AWS Certified Solutions Architect"],
     education: { degree: "Bachelor of Science", field: "Computer Science", university: "MIT", graduation_year: 2018 },
 };
-
+``
 export const mockResume = {
     fullName: "Alex Doe",
     email: "alex.doe@email.com",
@@ -25,4 +25,14 @@ export const mockResume = {
     ],
     education: { degree: "Bachelor of Science in Computer Science", university: "MIT", year: "2018" },
     skills: ["React", "Node.js", "TypeScript", "AWS", "SQL", "Docker"]
+};
+
+
+export const mockInterviewFeedbackEmpty = {
+    clarity_confidence_score: 0,
+    star_method_score: 0,
+    keyword_score: 0,
+    overall_feedback: "No interview data was found to provide feedback on. Please start a new interview session to get a detailed report.",
+    strengths: [],
+    areas_for_improvement: []
 };

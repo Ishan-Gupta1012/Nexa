@@ -267,7 +267,7 @@ export default function ResumeBuilder() {
                   <FormInput id="degree" placeholder="Degree (e.g., Bachelor of Science)" value={edu.degree} onChange={(e) => handleItemChange(i, "education", e)} />
                   <FormInput id="field" placeholder="Field of Study (e.g., Computer Science)" value={edu.field} onChange={(e) => handleItemChange(i, "education", e)} />
                   <FormInput id="university" placeholder="University Name" value={edu.university} onChange={(e) => handleItemChange(i, "education", e)} />
-                  <FormInput id="graduation_date" type="date" placeholder="Graduation Date" value={edu.graduation_date} onChange={(e) => handleItemChange(i, "education", e)} />
+                  <FormInput id="graduation_date" type="text" placeholder="Graduation Date" value={edu.graduation_date} onChange={(e) => handleItemChange(i, "education", e)} />
                 </div>
               ))}
               <button onClick={() => addItem("education")} className="text-sm font-semibold text-emerald-400 hover:text-emerald-300">

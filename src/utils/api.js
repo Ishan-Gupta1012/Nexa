@@ -29,7 +29,14 @@ const apiKeys = [
   import.meta.env.VITE_GEMINI_API_KEY_5,
   import.meta.env.VITE_GEMINI_API_KEY_6,
   import.meta.env.VITE_GEMINI_API_KEY_7,
-  import.meta.env.VITE_GEMINI_API_KEY_8,
+  import.meta.env.VITE_GEMINI_API_KEY_8, 
+  import.meta.env.VITE_GEMINI_API_KEY_9,
+  import.meta.env.VITE_GEMINI_API_KEY_10,
+  import.meta.env.VITE_GEMINI_API_KEY_11,
+  import.meta.env.VITE_GEMINI_API_KEY_12,
+  import.meta.env.VITE_GEMINI_API_KEY_13,
+  import.meta.env.VITE_GEMINI_API_KEY_14,
+  
   // Add more keys here if you have them
 ].filter(Boolean); // Filter out any undefined keys
 

@@ -12,7 +12,9 @@ import {
   Target,
   BookOpen,
   Star,
+  Compass // Import Compass icon
 } from "lucide-react";
+import { Link } from "react-router-dom"; // Import Link component
 
 const initialProfileState = {
   profile_picture_url: "",
@@ -763,6 +765,26 @@ export default function Profile() {
           </p>
         </div>
       </div>
+      
+      {/* Conditionally rendered note for Career Compass */}
+      {formData.experience_level !== 'entry' && (
+        <div className="bg-purple-500/10 backdrop-blur-md rounded-xl border border-purple-400/20 p-4 flex items-start gap-4">
+          <div className="w-10 h-10 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Compass className="w-5 h-5 text-purple-400" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-md font-bold text-white mb-1">Unlock Career Compass</h3>
+            <p className="text-purple-200 text-sm mb-3">
+              To access the **Career Compass** feature, please set your **Experience Level** to 'Entry'.
+            </p>
+            <Link to="/career-compass">
+              <button className="bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-lg text-xs px-3 py-1.5">
+                Go to Career Compass
+              </button>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {isEditing ? (
         <ProfileEditForm
