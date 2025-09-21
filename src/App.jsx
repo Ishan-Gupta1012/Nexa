@@ -15,13 +15,13 @@ import CareerCompass from './pages/CareerCompass.jsx';
 import JobDetails from './pages/JobDetails.jsx';
 
 export const routes = [
-  { path: "/signin", element: <SignIn /> },
+  // { path: "/signin", element: <SignIn /> },
   { path: "/resume-preview", element: <ResumePreview /> },
   {
     path:"/",
-    element: <Layout />,
+    element: <SignIn/>,
     children: [
-      { index: true, element: <Dashboard /> },
+      { index: true, element: <Layout/> },
       { path: "/dashboard", element: <Dashboard /> },
       { path: "/profile", element: <Profile /> },
       { path: "/resume-builder", element: <ResumeBuilder /> },
