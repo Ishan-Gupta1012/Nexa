@@ -1,0 +1,17 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# 1. NEW: Redirects for React Router (History Mode)
+# This rule handles deep links and page refreshes by routing all traffic back to index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 2. KEPT: Headers for the MIME type fix
+# This ensures JavaScript files are served as modules to fix the "application/octet-stream" error.
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "text/javascript"
