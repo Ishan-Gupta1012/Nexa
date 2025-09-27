@@ -103,7 +103,7 @@ export default function Layout() {
     const handleAuthStateChange = async (session) => {
       if (!isMounted) return;
 
-      setIsLoading(true); 
+      setIsLoading(false); 
 
       try {
         const currentUser = session?.user;
