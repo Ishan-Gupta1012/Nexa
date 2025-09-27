@@ -87,43 +87,82 @@ export default function Layout() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const initialLoad = useRef(true);
+
+  // FIX 1: Ref to store mutable navigation values for the single-run useEffect
+  const navigationRef = useRef({ navigate, location });
 
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (initialLoad.current) {
-          setIsLoading(true);
+    // FIX 2: Update the ref on every render to ensure it holds the current navigate/location functions
+    navigationRef.current = { navigate, location };
+  });
+
+  useEffect(() => {
+    let isMounted = true; 
+
+    // Async function to handle auth state and profile fetch
+    const handleAuthStateChange = async (session) => {
+      if (!isMounted) return;
+
+      setIsLoading(true); 
+
+      try {
+        const currentUser = session?.user;
+        
+        if (isMounted) {
+            setUser(currentUser ?? null);
         }
 
-        const currentUser = session?.user;
-        setUser(currentUser ?? null);
-
+        let profileData = null;
         if (currentUser) {
-          const { data: profileData } = await supabase
+          // Fetch profile data
+          const { data, error } = await supabase
             .from("profiles")
             .select("*")
             .eq("id", currentUser.id)
             .single();
-          setProfile(profileData);
-        } else {
-          setProfile(null);
+            
+          // Check for the "no rows found" error code (PGRST116)
+          if (error && error.code !== "PGRST116") {
+            console.error("Error fetching profile:", error);
+          } else if (data) {
+            profileData = data;
+          }
+        }
+        
+        if (isMounted) {
+            setProfile(profileData);
         }
 
-        if (!currentUser && location.pathname !== "/signin") {
-          navigate("/signin");
+        // Use the current values from the ref for redirection logic
+        const { navigate: currentNavigate, location: currentLocation } = navigationRef.current;
+        
+        if (!currentUser && currentLocation.pathname !== "/signin") {
+          currentNavigate("/signin");
         }
-
-        if (initialLoad.current) {
-          setIsLoading(false);
-          initialLoad.current = false;
+        
+      } catch (error) {
+        console.error("Layout auth/profile error during state change:", error);
+      } finally {
+        // IMPORTANT: Ensure loading is set to false regardless of success or failure
+        if (isMounted) {
+            setIsLoading(false);
         }
       }
+    };
+
+    // Set up the listener only once on mount
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+          handleAuthStateChange(session);
+      }
     );
+
+    // Cleanup function: Unsubscribe the listener and mark as unmounted
     return () => {
+      isMounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [navigate, location.pathname]);
+  }, []); // FIX 3: Empty dependency array ensures this listener is set up only once.
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -271,4 +310,3 @@ export default function Layout() {
     </div>
   );
 }
-

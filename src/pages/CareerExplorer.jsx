@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext } from "react-router-dom";
 import { fetchWithRetry, getApiKey } from '../utils/api';
-import { Map, Loader2, Sparkles, BookOpen, BrainCircuit, HeartPulse, Palette, Briefcase, Atom, ArrowLeft, Target, TrendingUp, Youtube, Globe, FileText, CalendarDays, CheckCircle, Search } from 'lucide-react';
+import { Map, Loader2, Sparkles, BookOpen, BrainCircuit, HeartPulse, Palette, Briefcase, Atom, ArrowLeft, Target, TrendingUp, Youtube, Globe, FileText, CalendarDays, CheckCircle, Search, History, ArrowRight } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 const careerFields = [
   { name: 'Technology', icon: BrainCircuit, color: 'text-cyan-400' },
@@ -55,6 +56,40 @@ const setCachedData = (jobTitle, data) => {
 };
 // --- End Caching Logic ---
 
+const RoadmapHistory = ({ history, onSelect, isLoading }) => {
+    if (isLoading) {
+        return (
+            <div className="flex justify-center items-center h-20">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+            </div>
+        );
+    }
+    return (
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-xl min-h-[10vh] max-h-[30vh] overflow-y-auto">
+          <h3 className="font-bold text-lg text-white flex items-center gap-2 mb-4"><History className="w-5 h-5 text-purple-400" /> Your Roadmap History</h3>
+          {history.length > 0 ? (
+              <ul className="space-y-3">
+                  {history.map(item => (
+                      <button 
+                          key={item.id} 
+                          onClick={() => onSelect(item)} 
+                          className="w-full text-left p-3 bg-gray-800/50 rounded-lg flex items-center justify-between hover:bg-gray-700/80 transition-colors"
+                      >
+                          <div>
+                              <p className="font-medium text-white">{item.career_goal}</p>
+                              <p className="text-xs text-gray-400">Created: {new Date(item.created_at).toLocaleDateString()}</p>
+                          </div>
+                          <ArrowRight size={16} className="text-purple-400 flex-shrink-0" />
+                      </button>
+                  ))}
+              </ul>
+          ) : (
+              <p className="text-center text-gray-400">No previous roadmaps found.</p>
+          )}
+        </div>
+    );
+};
+
 export default function CareerExplorer() {
   const [step, setStep] = useState('fieldSelection');
   const [selectedField, setSelectedField] = useState(null);
@@ -68,8 +103,10 @@ export default function CareerExplorer() {
   const [completedMilestones, setCompletedMilestones] = useState(new Set());
   const [congratsMessage, setCongratsMessage] = useState('');
   const [progress, setProgress] = useState(0);
+  const [history, setHistory] = useState([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   
-  const { profile } = useOutletContext();
+  const { profile, user } = useOutletContext();
 
   useEffect(() => {
     if (roadmap && roadmap.milestones) {
@@ -80,6 +117,32 @@ export default function CareerExplorer() {
         }
     }
   }, [roadmap, completedMilestones]);
+
+  useEffect(() => {
+    async function fetchRoadmapHistory() {
+        setIsHistoryLoading(true);
+        if (!user) {
+            setIsHistoryLoading(false);
+            return;
+        }
+        const { data, error } = await supabase
+            .from('career_roadmaps')
+            .select('id, career_goal, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching roadmap history:', error);
+        } else {
+            setHistory(data || []);
+        }
+        setIsHistoryLoading(false);
+    }
+
+    if (user) {
+        fetchRoadmapHistory();
+    }
+  }, [user]);
 
   const handleResourceComplete = (resourceQuery) => {
     if (completedResources.has(resourceQuery)) return;
@@ -107,6 +170,29 @@ export default function CareerExplorer() {
   const handleFieldSelect = (field) => {
     setSelectedField(field);
     setStep('roleInput');
+  };
+  
+  const handleSelectHistoricalRoadmap = async (roadmapItem) => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+        .from('career_roadmaps')
+        .select('*')
+        .eq('id', roadmapItem.id)
+        .single();
+    
+    if (error) {
+        console.error('Error fetching roadmap details:', error);
+        alert('Failed to load roadmap details. Please try again.');
+        setIsLoading(false);
+        return;
+    }
+
+    setRoadmap(data);
+    setJobTitle(data.career_goal);
+    setCompletedMilestones(new Set(data.milestones?.filter(m => m.status === 'completed').map(m => m.title) || []));
+    setCompletedResources(new Set(data.completed_resources || []));
+    setStep('roadmapDisplay');
+    setIsLoading(false);
   };
 
   const generateRoadmap = async () => {
@@ -150,6 +236,33 @@ export default function CareerExplorer() {
       const data = await response.json();
       const result = JSON.parse(data.candidates[0].content.parts[0].text);
       setRoadmap(result);
+      
+      if (user) {
+          console.log("Attempting to save new roadmap to Supabase...");
+          const { error } = await supabase
+              .from('career_roadmaps')
+              .insert({
+                  user_id: user.id,
+                  career_goal: result.career_goal,
+                  title: result.career_goal,
+                  timeline_months: result.timeline_months,
+                  milestones: result.milestones,
+                  ai_generated: true,
+                  progress_percentage: 0
+              });
+
+          if (error) {
+              console.error("Error saving new roadmap:", error);
+              alert("Failed to save the new roadmap to your history. Please check the browser console for details.");
+          } else {
+              console.log("Roadmap successfully saved!");
+              // After saving, you may want to re-fetch the history to update the list
+              // However, for this solution, we assume the initial fetch will grab it on reload
+          }
+      } else {
+          console.warn("User is not logged in. Skipping database save for roadmap.");
+      }
+
       setCachedData(jobTitle, { roadmap: result, completedMilestones: new Set(), completedResources: new Set() });
       setStep('roadmapDisplay');
     } catch (error) {
@@ -363,7 +476,12 @@ export default function CareerExplorer() {
         return (
           <div className="text-center">
             <h2 className="text-3xl font-bold text-white">Explore Your Career Path</h2>
-            <p className="text-gray-400 mt-2">Select a field to begin your journey.</p>
+            <p className="text-gray-400 mt-2">Select a field or view your past roadmaps.</p>
+            
+            <div className="my-8">
+              <RoadmapHistory history={history} onSelect={handleSelectHistoricalRoadmap} isLoading={isHistoryLoading} />
+            </div>
+            
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
               {careerFields.map(field => (
                 <button key={field.name} onClick={() => handleFieldSelect(field)} className={`p-8 bg-white/5 border border-white/10 rounded-xl flex flex-col items-center gap-4 hover:-translate-y-1 hover:border-purple-400/50 transition-all duration-300`}>
@@ -408,4 +526,3 @@ export default function CareerExplorer() {
     </div>
   );
 }
-
