@@ -224,7 +224,7 @@ export default function CareerExplorer() {
         Return ONLY a valid JSON object with the structure: { "career_goal": "string", "timeline_months": number, "milestones": [ { "title": "string", "description": "string", "skills_gained": ["string"], "suggested_resources": [ { "title": "string", "type": "string", "provider": "string", "search_query": "string" } ] } ] }`;
 
       const apiKey = getApiKey();
-      const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -287,7 +287,7 @@ export default function CareerExplorer() {
             Return ONLY a valid JSON object. For a "weekly" plan, keys should be "Week 1", "Week 2", etc. For "monthly", use "Month 1", etc. Each period should contain an array of specific tasks as strings.`;
         
         const apiKey = getApiKey();
-        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

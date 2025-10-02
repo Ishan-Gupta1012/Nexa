@@ -144,7 +144,7 @@ export default function Dashboard() {
           try {
             const apiKey = getApiKey();
             const response = await fetchWithRetry(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
               { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: `Based on this user's profile (Role: ${profile.current_role}, Goal: ${profile.career_goals}), provide one single, short, and actionable suggestion for their next career step. Be encouraging.` }] }] }) }
             );
             if (response.ok) {

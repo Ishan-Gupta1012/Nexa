@@ -76,7 +76,7 @@ export default function InterviewPrep() {
         try {
             const systemPrompt = `You are an expert interviewer hiring for a "${jobTitle}" position. Start by introducing yourself briefly and then ask the first relevant question (it can be behavioral or technical). Ask only one question at a time.`;
             const apiKey = getApiKey();
-            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: systemPrompt }] }] }),
             });
             if (!response.ok) throw new Error(`API call failed`);
@@ -113,7 +113,7 @@ export default function InterviewPrep() {
             const prompt = `The user has just answered your previous question for the "${jobTitle}" role. Provide brief, constructive feedback in italics, and then ask the next logical question. Ask only one question or provide one piece of feedback at a time.`;
             conversationHistory.unshift({ role: 'user', parts: [{ text: prompt }] });
 
-            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: conversationHistory }),
             });
             if (!response.ok) throw new Error(`API call failed`);
@@ -160,7 +160,7 @@ export default function InterviewPrep() {
             const transcriptText = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n\n');
             const prompt = `You are an expert HR manager and interview coach. Analyze the interview transcript for a "${jobTitle}" position. Provide a detailed performance report. Return ONLY a valid JSON object: { "clarity_confidence_score": number(1-100), "star_method_score": number(1-100), "keyword_score": number(1-100), "overall_feedback": "string", "strengths": ["string"], "areas_for_improvement": ["string"] }`;
             const apiKey = getApiKey();
-            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: `TRANSCRIPT:\n\n${transcriptText}\n\n${prompt}` }] }], generationConfig: { responseMimeType: "application/json" } }),
             });
             if (!response.ok) throw new Error('Feedback generation failed');

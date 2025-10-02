@@ -71,7 +71,7 @@ export default function CareerCompass() {
         }`;
 
       const apiKey = getApiKey();
-      const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,7 +101,7 @@ export default function CareerCompass() {
         { "degree": "string", "roadmap": { "Year 1": { "focus": "string", "key_activities": ["string"] }, "Year 2": { ... }, "Year 3": { ... }, "Year 4": { ... } } }`;
 
       const apiKey = getApiKey();
-      const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }),
       });
       if (!response.ok) throw new Error("API request failed");

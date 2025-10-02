@@ -1,3 +1,5 @@
+// src/utils/api.js
+
 // This is a robust fetch function with exponential backoff for handling rate limits (429 errors)
 export async function fetchWithRetry(url, options, retries = 3, delay = 1000) {
     for (let i = 0; i < retries; i++) {
@@ -29,14 +31,14 @@ const apiKeys = [
   import.meta.env.VITE_GEMINI_API_KEY_5,
   import.meta.env.VITE_GEMINI_API_KEY_6,
   import.meta.env.VITE_GEMINI_API_KEY_7,
-  import.meta.env.VITE_GEMINI_API_KEY_8, 
+  import.meta.env.VITE_GEMINI_API_KEY_8,
   import.meta.env.VITE_GEMINI_API_KEY_9,
   import.meta.env.VITE_GEMINI_API_KEY_10,
   import.meta.env.VITE_GEMINI_API_KEY_11,
   import.meta.env.VITE_GEMINI_API_KEY_12,
   import.meta.env.VITE_GEMINI_API_KEY_13,
   import.meta.env.VITE_GEMINI_API_KEY_14,
-  
+
   // Add more keys here if you have them
 ].filter(Boolean); // Filter out any undefined keys
 
